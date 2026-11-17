@@ -31,7 +31,16 @@ Sync rules:
 - Prevent loops if BingeLog later sends watched state back to Jellyfin.
 - Store Jellyfin access tokens in Keychain.
 
-## MDBList — ratings and discovery enrichment
+## MDBList — personal list import and ratings enrichment
+
+BingeLog includes an optional read-only import of the authenticated user’s MDBList lists. The user enters an MDBList API key in the Importera tab; store it in iOS Keychain and never commit it.
+
+Import behavior:
+- Fetch the authenticated user’s lists from `/lists/user/` and list items from `/lists/{listid}/items/`.
+- Page in batches of 100 and respect MDBList’s 1,000-item maximum per list.
+- Match using TMDB ID plus media type; skip entries without a TMDB ID rather than guessing from title alone.
+- Add new entries as “Vill se”; never overwrite an existing BingeLog status, personal rating, or diary data.
+- Keep import one-way and local. Disconnecting MDBList must not remove imported entries.
 
 Use MDBList as an optional enrichment provider for:
 - Aggregated ratings and vote counts from supported sources.
