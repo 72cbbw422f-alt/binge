@@ -91,7 +91,16 @@ struct CalendarView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 dateHeading(group.date)
                                 ForEach(group.items) { item in
-                                    releaseCard(item)
+                                    NavigationLink {
+                                        MediaDetailView(
+                                            id: item.tmdbID,
+                                            mediaKind: item.kind == .movie ? .movie : .tv,
+                                            fallbackTitle: item.title
+                                        )
+                                    } label: {
+                                        releaseCard(item)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
