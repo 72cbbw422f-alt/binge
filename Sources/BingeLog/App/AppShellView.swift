@@ -6,7 +6,6 @@ enum AppTab: String, CaseIterable, Identifiable {
     case collection = "Samling"
     case discover = "Upptäck"
     case calendar = "Kalender"
-    case importer = "Importera"
     case profile = "Profil"
 
     var id: String { rawValue }
@@ -17,7 +16,6 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .collection: "rectangle.stack"
         case .discover: "safari"
         case .calendar: "calendar"
-        case .importer: "square.and.arrow.down"
         case .profile: "person.crop.circle"
         }
     }
@@ -48,9 +46,7 @@ struct AppShellView: View {
         case .discover: DiscoverView()
         case .calendar:
             PlaceholderSectionView(title: "Kalender", subtitle: "Premiärer, nya avsnitt och kommande släpp.", symbol: "calendar")
-        case .importer: MDBListImportView()
-        case .profile:
-            PlaceholderSectionView(title: "Din profil", subtitle: "Tittarstatistik, inställningar och anslutna tjänster.", symbol: "person.crop.circle")
+        case .profile: ProfileView()
         }
     }
 }
@@ -160,6 +156,47 @@ private struct PlaceholderSectionView: View {
                 .frame(maxWidth: 290)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BingeTheme.background.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+
+private struct ProfileView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("INSTÄLLNINGAR")
+                        .font(.caption.weight(.bold)).tracking(1.4)
+                        .foregroundStyle(BingeTheme.accent)
+                    Text("Din profil")
+                        .font(.largeTitle.bold()).foregroundStyle(.white)
+                    Text("Hantera anslutningar och importera din befintliga tittarhistorik.")
+                        .font(.subheadline).foregroundStyle(BingeTheme.secondaryText)
+                }
+                NavigationLink {
+                    MDBListImportView()
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.title2).foregroundStyle(BingeTheme.accent)
+                            .frame(width: 46, height: 46)
+                            .background(BingeTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Importera från MDBList").font(.headline).foregroundStyle(.white)
+                            Text("Hämta dina egna filmer och serielistor").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(BingeTheme.secondaryText)
+                    }
+                    .padding(15)
+                    .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(BingeTheme.screenPadding)
+        }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
     }
