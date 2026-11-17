@@ -97,6 +97,7 @@ enum MDBListError: LocalizedError {
         case .invalidURL: "Ogiltig MDBList-adress."
         case .invalidResponse: "MDBList skickade ett svar som inte kunde läsas."
         case .unauthorized: "API-nyckeln verkar vara fel. Kontrollera den i MDBList-inställningarna."
+        case .rateLimited: "MDBList har tillfälligt begränsat antalet anrop. Vänta en stund och försök igen."
         case .requestFailed(let code): "MDBList svarade med HTTP \(code)."
         case .missingTMDBID: "Posten saknar TMDB-ID och kan inte matchas säkert."
         }
