@@ -85,7 +85,7 @@ private struct HomeView: View {
                         .font(.caption.weight(.bold))
                         .tracking(1.5)
                         .foregroundStyle(BingeTheme.accent)
-                    Text("Hitta något\\nvärt att titta på.")
+                    Text("Hitta något\nvärt att titta på.")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .tracking(-1.2)
                         .foregroundStyle(BingeTheme.primaryText)
