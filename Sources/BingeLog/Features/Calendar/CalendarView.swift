@@ -51,73 +51,10 @@ struct CalendarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
-
-                HStack(spacing: 10) {
-                    summaryMetric(value: "\(upcoming.count)", label: "Kommande släpp", symbol: "calendar")
-                    summaryMetric(value: "\(upcomingTitleCount)", label: "Titlar", symbol: "sparkles")
-                }
-
-                Picker("Period", selection: $horizon) {
-                    Text("30 dagar").tag(30)
-                    Text("90 dagar").tag(90)
-                }
-                .pickerStyle(.segmented)
-                .tint(BingeTheme.accent)
-
-                if isLoading && releases.isEmpty {
-                    loadingState
-                } else if let errorMessage {
-                    messageCard(title: "Kalendern kunde inte hämtas", message: errorMessage, symbol: "wifi.exclamationmark")
-                } else if upcoming.isEmpty {
-                    messageCard(
-                        title: "Inga kommande släpp ännu",
-                        message: entries.isEmpty
-                            ? "Lägg till filmer och serier i din samling så håller BingeLog koll på kommande premiärer och avsnitt."
-                            : "Vi hittar inga bekräftade premiärer eller avsnitt under den valda perioden för dina sparade titlar.",
-                        symbol: "calendar.badge.checkmark"
-                    )
-                } else {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Text("PÅ GÅNG")
-                                .font(.caption.weight(.bold))
-                                .tracking(1.5)
-                                .foregroundStyle(BingeTheme.accent)
-                            Spacer()
-                            if isLoading {
-                                ProgressView().tint(BingeTheme.accent).scaleEffect(0.8)
-                            } else {
-                                Text("\(upcoming.count) händelser")
-                                    .font(.caption)
-                                    .foregroundStyle(BingeTheme.secondaryText)
-                            }
-                        }
-
-                        ForEach(groupedReleases, id: \.date) { group in
-                            VStack(alignment: .leading, spacing: 10) {
-                                dateHeading(group.date)
-                                ForEach(group.items) { item in
-                                    NavigationLink {
-                                        MediaDetailView(
-                                            id: item.tmdbID,
-                                            mediaKind: item.kind == .movie ? .movie : .tv,
-                                            fallbackTitle: item.title
-                                        )
-                                    } label: {
-                                        releaseCard(item)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Text("Datumen hämtas från TMDB och kan ändras av distributören. Endast kommande datum visas.")
-                    .font(.caption2)
-                    .foregroundStyle(BingeTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
+                summaryMetrics
+                horizonPicker
+                calendarContent
+                attributionNote
             }
             .padding(BingeTheme.screenPadding)
         }
@@ -125,6 +62,83 @@ struct CalendarView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await loadReleases() }
         .refreshable { await loadReleases() }
+    }
+
+    private var summaryMetrics: some View {
+        HStack(spacing: 10) {
+            summaryMetric(value: String(upcoming.count), label: "Kommande släpp", symbol: "calendar")
+            summaryMetric(value: String(upcomingTitleCount), label: "Titlar", symbol: "sparkles")
+        }
+    }
+
+    private var horizonPicker: some View {
+        Picker("Period", selection: $horizon) {
+            Text("30 dagar").tag(30)
+            Text("90 dagar").tag(90)
+        }
+        .pickerStyle(.segmented)
+        .tint(BingeTheme.accent)
+    }
+
+    @ViewBuilder
+    private var calendarContent: some View {
+        if isLoading && releases.isEmpty {
+            loadingState
+        } else if let errorMessage {
+            messageCard(title: "Kalendern kunde inte hämtas", message: errorMessage, symbol: "wifi.exclamationmark")
+        } else if upcoming.isEmpty {
+            let emptyMessage = entries.isEmpty
+                ? "Lägg till filmer och serier i din samling så håller BingeLog koll på kommande premiärer och avsnitt."
+                : "Vi hittar inga bekräftade premiärer eller avsnitt under den valda perioden för dina sparade titlar."
+            messageCard(title: "Inga kommande släpp ännu", message: emptyMessage, symbol: "calendar.badge.checkmark")
+        } else {
+            releaseList
+        }
+    }
+
+    private var releaseList: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("PÅ GÅNG")
+                    .font(.caption.weight(.bold))
+                    .tracking(1.5)
+                    .foregroundStyle(BingeTheme.accent)
+                Spacer()
+                if isLoading {
+                    ProgressView().tint(BingeTheme.accent).scaleEffect(0.8)
+                } else {
+                    Text("\(upcoming.count) händelser")
+                        .font(.caption)
+                        .foregroundStyle(BingeTheme.secondaryText)
+                }
+            }
+
+            ForEach(groupedReleases, id: \.date) { group in
+                VStack(alignment: .leading, spacing: 10) {
+                    dateHeading(group.date)
+                    ForEach(group.items) { item in
+                        NavigationLink {
+                            MediaDetailView(
+                                id: item.tmdbID,
+                                mediaKind: item.kind == .movie ? .movie : .tv,
+                                fallbackTitle: item.title
+                            )
+                        } label: {
+                            releaseCard(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var attributionNote: some View {
+        Text("Datumen hämtas från TMDB och kan ändras av distributören. Endast kommande datum visas.")
+            .font(.caption2)
+            .foregroundStyle(BingeTheme.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 2)
     }
 
     private var header: some View {
