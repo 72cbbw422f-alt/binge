@@ -29,17 +29,17 @@ struct MediaDetailView: View {
     }
     private var posterURL: URL? {
         if let path = details?.posterPath {
-            return URL(string: "https://image.tmdb.org/t/p/w500\\(path)")
+            return URL(string: "https://image.tmdb.org/t/p/w500\(path)")
         }
         guard let fallbackPosterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w500\\(fallbackPosterPath)")
+        return URL(string: "https://image.tmdb.org/t/p/w500\(fallbackPosterPath)")
     }
     private var backdropURL: URL? {
         if let path = details?.backdropPath {
-            return URL(string: "https://image.tmdb.org/t/p/w1280\\(path)")
+            return URL(string: "https://image.tmdb.org/t/p/w1280\(path)")
         }
         guard let fallbackBackdropPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w1280\\(fallbackBackdropPath)")
+        return URL(string: "https://image.tmdb.org/t/p/w1280\(fallbackBackdropPath)")
     }
 
     var body: some View {
@@ -60,7 +60,7 @@ struct MediaDetailView: View {
                         .font(.system(size: 30, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     if let genres = details?.genres, !genres.isEmpty {
-                        Text(genres.map(\\.name).joined(separator: " · "))
+                        Text(genres.map(\.name).joined(separator: " · "))
                             .font(.caption)
                             .foregroundStyle(BingeTheme.secondaryText)
                     }
@@ -76,6 +76,7 @@ struct MediaDetailView: View {
                 synopsis
                 castSection
                 trailerSection
+                if let errorMessage { errorNotice }
                 attribution
             }
             .padding(.bottom, 32)
