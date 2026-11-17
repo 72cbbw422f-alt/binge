@@ -133,7 +133,10 @@ struct CalendarView: View {
             MediaDetailView(
                 id: item.tmdbID,
                 mediaKind: item.kind == .movie ? .movie : .tv,
-                fallbackTitle: item.title
+                fallbackTitle: item.title,
+                fallbackOverview: "",
+                fallbackPosterPath: item.posterPath,
+                fallbackBackdropPath: nil
             )
         } label: {
             releaseCard(item)
