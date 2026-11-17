@@ -63,7 +63,7 @@ struct CalendarView: View {
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .task { await loadReleases() }
-        .refreshable { await loadReleases() }
+        .refreshable { await loadReleases(forceRefresh: true) }
     }
 
     private var summaryMetrics: some View {
