@@ -106,6 +106,7 @@ struct TMDBDetailResponse: Decodable {
     let episodeRunTime: [Int]?
     let numberOfSeasons: Int?
     let numberOfEpisodes: Int?
+    let seasons: [TMDBSeasonSummary]?
     let genres: [TMDBGenre]?
     let credits: TMDBCredits?
     let videos: TMDBVideos?
@@ -120,6 +121,7 @@ struct TMDBDetailResponse: Decodable {
         case episodeRunTime = "episode_run_time"
         case numberOfSeasons = "number_of_seasons"
         case numberOfEpisodes = "number_of_episodes"
+        case seasons
     }
 
     var displayTitle: String { title ?? name ?? "Okänd titel" }
@@ -180,5 +182,45 @@ struct TMDBVideo: Decodable, Identifiable {
     var youtubeURL: URL? {
         guard site == "YouTube" else { return nil }
         return URL(string: "https://www.youtube.com/watch?v=\(key)")
+    }
+}
+
+struct TMDBSeasonSummary: Decodable, Identifiable {
+    let id: Int
+    let seasonNumber: Int
+    let name: String
+    let episodeCount: Int
+    let airDate: String?
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case seasonNumber = "season_number"
+        case episodeCount = "episode_count"
+        case airDate = "air_date"
+    }
+}
+
+struct TMDBSeasonResponse: Decodable {
+    let id: Int
+    let episodes: [TMDBEpisode]
+}
+
+struct TMDBEpisode: Decodable, Identifiable {
+    let id: Int
+    let episodeNumber: Int
+    let seasonNumber: Int
+    let name: String
+    let overview: String?
+    let airDate: String?
+    let stillPath: String?
+    enum CodingKeys: String, CodingKey {
+        case id, name, overview
+        case episodeNumber = "episode_number"
+        case seasonNumber = "season_number"
+        case airDate = "air_date"
+        case stillPath = "still_path"
+    }
+    var stillURL: URL? {
+        guard let stillPath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w300\\(stillPath)")
     }
 }
