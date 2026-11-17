@@ -30,6 +30,8 @@ struct CalendarView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var horizon = 30
+    @State private var lastLoadedAt: Date?
+    @State private var hasLoadedReleases = false
 
     private var upcoming: [BingeReleaseItem] {
         let limit = Calendar.current.date(byAdding: .day, value: horizon, to: .now) ?? .now
@@ -161,7 +163,7 @@ struct CalendarView: View {
                     .foregroundStyle(BingeTheme.accent)
                 Spacer()
                 Button {
-                    Task { await loadReleases() }
+                    Task { await loadReleases(forceRefresh: true) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.subheadline.weight(.semibold))
@@ -222,7 +224,7 @@ struct CalendarView: View {
                 .foregroundStyle(BingeTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             if !entries.isEmpty {
-                Button("Försök igen") { Task { await loadReleases() } }
+                Button("Försök igen") { Task { await loadReleases(forceRefresh: true) } }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BingeTheme.accent)
                     .padding(.top, 3)
@@ -294,8 +296,12 @@ struct CalendarView: View {
     }
 
     @MainActor
-    private func loadReleases() async {
+    private func loadReleases(forceRefresh: Bool = false) async {
         guard !isLoading else { return }
+        if !forceRefresh, hasLoadedReleases, let lastLoadedAt,
+           Date.now.timeIntervalSince(lastLoadedAt) < 15 * 60 {
+            return
+        }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -365,6 +371,8 @@ struct CalendarView: View {
         }
 
         releases = found.sorted { $0.date < $1.date }
+        hasLoadedReleases = fetchError == nil || !found.isEmpty
+        lastLoadedAt = hasLoadedReleases ? .now : nil
         if releases.isEmpty {
             errorMessage = fetchError
         }
