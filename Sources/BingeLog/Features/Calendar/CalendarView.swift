@@ -37,6 +37,11 @@ struct CalendarView: View {
             .sorted { $0.date < $1.date }
     }
 
+    private var upcomingTitleCount: Int {
+        let titles = upcoming.map { $0.title }
+        return Set(titles).count
+    }
+
     private var groupedReleases: [(date: Date, items: [BingeReleaseItem])] {
         let groups = Dictionary(grouping: upcoming) { Calendar.current.startOfDay(for: $0.date) }
         return groups.keys.sorted().map { ($0, groups[$0, default: []]) }
@@ -49,7 +54,7 @@ struct CalendarView: View {
 
                 HStack(spacing: 10) {
                     summaryMetric(value: "\(upcoming.count)", label: "Kommande släpp", symbol: "calendar")
-                    summaryMetric(value: "\(Set(upcoming.map(\.title)).count)", label: "Titlar", symbol: "sparkles")
+                    summaryMetric(value: "\(upcomingTitleCount)", label: "Titlar", symbol: "sparkles")
                 }
 
                 Picker("Period", selection: $horizon) {
