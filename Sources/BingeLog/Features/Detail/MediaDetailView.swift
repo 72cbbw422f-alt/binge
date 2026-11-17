@@ -10,7 +10,8 @@ struct MediaDetailView: View {
     let fallbackBackdropPath: String?
 
     @Environment(\.modelContext) private var modelContext
-    @Query private var entries: [BingeEntry]\n    @Query private var episodeProgress: [BingeEpisodeProgress]\n    @State private var expandedSeason: Int?\n    @State private var loadedSeasons: [Int: [TMDBEpisode]] = [:]\n    @State private var loadingSeason: Int?
+    @Query private var entries: [BingeEntry]
+    @Query private var episodeProgress: [BingeEpisodeProgress]\n    @State private var expandedSeason: Int?\n    @State private var loadedSeasons: [Int: [TMDBEpisode]] = [:]\n    @State private var loadingSeason: Int?
     @State private var details: TMDBDetailResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
