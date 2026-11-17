@@ -309,7 +309,7 @@ struct MediaDetailView: View {
                 RoundedRectangle(cornerRadius: 7).fill(BingeTheme.elevated).frame(width: 92, height: 54)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text("AVSNITT \\(episode.episodeNumber)").font(.caption2.weight(.bold)).foregroundStyle(BingeTheme.accent)
+                Text("AVSNITT \(episode.episodeNumber)").font(.caption2.weight(.bold)).foregroundStyle(BingeTheme.accent)
                 Text(episode.name).font(.caption.weight(.semibold)).foregroundStyle(.white).lineLimit(2)
             }
             Spacer()
