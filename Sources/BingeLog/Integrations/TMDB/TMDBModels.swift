@@ -91,3 +91,94 @@ struct TMDBMediaItem: Decodable, Identifiable, Hashable {
         hasher.combine(mediaType)
     }
 }
+
+struct TMDBDetailResponse: Decodable {
+    let id: Int
+    let title: String?
+    let name: String?
+    let overview: String?
+    let posterPath: String?
+    let backdropPath: String?
+    let releaseDate: String?
+    let firstAirDate: String?
+    let voteAverage: Double?
+    let runtime: Int?
+    let episodeRunTime: [Int]?
+    let numberOfSeasons: Int?
+    let numberOfEpisodes: Int?
+    let genres: [TMDBGenre]?
+    let credits: TMDBCredits?
+    let videos: TMDBVideos?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, name, overview, runtime, genres, credits, videos
+        case posterPath = "poster_path"
+        case backdropPath = "backdrop_path"
+        case releaseDate = "release_date"
+        case firstAirDate = "first_air_date"
+        case voteAverage = "vote_average"
+        case episodeRunTime = "episode_run_time"
+        case numberOfSeasons = "number_of_seasons"
+        case numberOfEpisodes = "number_of_episodes"
+    }
+
+    var displayTitle: String { title ?? name ?? "Okänd titel" }
+    var year: String? {
+        let date = releaseDate ?? firstAirDate
+        guard let date, date.count >= 4 else { return nil }
+        return String(date.prefix(4))
+    }
+    var backdropURL: URL? {
+        guard let backdropPath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w1280\\(backdropPath)")
+    }
+    var posterURL: URL? {
+        guard let posterPath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w500\\(posterPath)")
+    }
+    var durationText: String? {
+        if let runtime, runtime > 0 { return "\\(runtime) min" }
+        if let first = episodeRunTime?.first { return "\\(first) min/avsnitt" }
+        return nil
+    }
+}
+
+struct TMDBGenre: Decodable, Identifiable {
+    let id: Int
+    let name: String
+}
+
+struct TMDBCredits: Decodable {
+    let cast: [TMDBCastMember]?
+}
+
+struct TMDBCastMember: Decodable, Identifiable {
+    let id: Int
+    let name: String
+    let character: String?
+    let profilePath: String?
+    enum CodingKeys: String, CodingKey {
+        case id, name, character
+        case profilePath = "profile_path"
+    }
+    var profileURL: URL? {
+        guard let profilePath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w185\\(profilePath)")
+    }
+}
+
+struct TMDBVideos: Decodable {
+    let results: [TMDBVideo]
+}
+
+struct TMDBVideo: Decodable, Identifiable {
+    let id: String
+    let key: String
+    let name: String
+    let site: String
+    let type: String
+    var youtubeURL: URL? {
+        guard site == "YouTube" else { return nil }
+        return URL(string: "https://www.youtube.com/watch?v=\\(key)")
+    }
+}
