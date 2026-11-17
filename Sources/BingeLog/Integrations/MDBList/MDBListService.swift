@@ -89,6 +89,7 @@ enum MDBListError: LocalizedError {
     case invalidResponse
     case unauthorized
     case requestFailed(Int)
+    case rateLimited
     case missingTMDBID
 
     var errorDescription: String? {
@@ -142,6 +143,7 @@ struct MDBListService {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw MDBListError.invalidResponse }
         if http.statusCode == 401 || http.statusCode == 403 { throw MDBListError.unauthorized }
+        if http.statusCode == 429 { throw MDBListError.rateLimited }
         guard (200..<300).contains(http.statusCode) else { throw MDBListError.requestFailed(http.statusCode) }
         return data
     }
