@@ -190,7 +190,10 @@ struct MDBListImportView: View {
                 }
                 let kind: BingeMediaKind = rawType == "movie" ? .movie : .tv
                 let key = "\(kind.rawValue)-\(tmdbID)"
-                guard knownKeys.insert(key).inserted else { continue }
+                guard knownKeys.insert(key).inserted else {
+                    skipped += 1
+                    continue
+                }
                 let date = item.year.map { String($0) + "-01-01" }
                 let entry = BingeEntry(
                     tmdbID: tmdbID,
