@@ -7,13 +7,26 @@ struct CollectionView: View {
     @State private var selectedStatus: BingeWatchStatus?
     @State private var selectedKind: BingeMediaKind?
     @State private var searchText = ""
+    @State private var sortOrder = "recent"
 
     private var filteredEntries: [BingeEntry] {
-        entries.filter {
+        let filtered = entries.filter {
             (selectedStatus == nil || $0.status == selectedStatus) &&
             (selectedKind == nil || $0.mediaKind == selectedKind) &&
             (searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
              $0.title.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+        switch sortOrder {
+        case "title": return filtered.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case "rating": return filtered.sorted {
+            switch ($0.userRating, $1.userRating) {
+            case let (left?, right?): return left > right
+            case (_?, nil): return true
+            case (nil, _?): return false
+            case (nil, nil): return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+        }
+        default: return filtered.sorted { $0.addedAt > $1.addedAt }
         }
     }
 
@@ -51,6 +64,16 @@ struct CollectionView: View {
                     kindChip("Allt", kind: nil)
                     kindChip("Filmer", kind: .movie)
                     kindChip("Serier", kind: .tv)
+                    Spacer(minLength: 0)
+                    Menu {
+                        Button("Senast tillagda") { sortOrder = "recent" }
+                        Button("Titel A–Ö") { sortOrder = "title" }
+                        Button("Högst personligt betyg") { sortOrder = "rating" }
+                    } label: {
+                        Label("Sortera", systemImage: "arrow.up.arrow.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(BingeTheme.accent)
+                    }
                 }
 
                 ForEach(visibleSections) { status in
