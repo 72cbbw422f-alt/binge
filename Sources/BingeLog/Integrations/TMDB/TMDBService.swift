@@ -61,13 +61,13 @@ struct TMDBService {
             throw TMDBError.missingToken
         }
         var components = URLComponents(
-            url: baseURL.appendingPathComponent("tv/\\(seriesID)/season/\\(seasonNumber)"),
+            url: baseURL.appendingPathComponent("tv/\(seriesID)/season/\(seasonNumber)"),
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [URLQueryItem(name: "language", value: "sv-SE")]
         guard let url = components?.url else { throw TMDBError.invalidResponse }
         var request = URLRequest(url: url)
-        request.setValue("Bearer \\(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else { throw TMDBError.invalidResponse }
