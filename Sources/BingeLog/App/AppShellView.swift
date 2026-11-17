@@ -6,6 +6,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     case collection = "Samling"
     case discover = "Upptäck"
     case calendar = "Kalender"
+    case importer = "Importera"
     case profile = "Profil"
 
     var id: String { rawValue }
@@ -16,6 +17,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .collection: "rectangle.stack"
         case .discover: "safari"
         case .calendar: "calendar"
+        case .importer: "square.and.arrow.down"
         case .profile: "person.crop.circle"
         }
     }
@@ -46,6 +48,7 @@ struct AppShellView: View {
         case .discover: DiscoverView()
         case .calendar:
             PlaceholderSectionView(title: "Kalender", subtitle: "Premiärer, nya avsnitt och kommande släpp.", symbol: "calendar")
+        case .importer: MDBListImportView()
         case .profile:
             PlaceholderSectionView(title: "Din profil", subtitle: "Tittarstatistik, inställningar och anslutna tjänster.", symbol: "person.crop.circle")
         }
