@@ -19,7 +19,21 @@ struct MDBListUserList: Decodable, Identifiable {
     }
 }
 
+struct MDBListItemsResponse: Decodable {
+    let movies: [MDBListItem]?
+    let shows: [MDBListItem]?
+
+    var allItems: [MDBListItem] {
+        (movies ?? []) + (shows ?? [])
+    }
+}
+
 struct MDBListItem: Decodable, Identifiable {
+    struct ProviderIDs: Decodable {
+        let tmdb: Int?
+        enum CodingKeys: String, CodingKey { case tmdb }
+    }
+
     let id: Int
     let tmdbID: Int?
     let mediaType: String?
@@ -29,13 +43,17 @@ struct MDBListItem: Decodable, Identifiable {
     let overview: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, tmdbid, mediatype, title, name, year, poster, overview, description
+        case id, ids, tmdbid, mediatype, title, name, year, releaseYear = "release_year"
+        case poster, overview, description
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = (try? c.decode(Int.self, forKey: .id)) ?? 0
-        if let value = try? c.decode(Int.self, forKey: .tmdbid) {
+        let ids = try? c.decode(ProviderIDs.self, forKey: .ids)
+        if let nestedID = ids?.tmdb {
+            tmdbID = nestedID
+        } else if let value = try? c.decode(Int.self, forKey: .tmdbid) {
             tmdbID = value
         } else if let value = try? c.decode(String.self, forKey: .tmdbid) {
             tmdbID = Int(value)
@@ -44,7 +62,9 @@ struct MDBListItem: Decodable, Identifiable {
         }
         mediaType = try? c.decode(String.self, forKey: .mediatype)
         title = (try? c.decode(String.self, forKey: .title)) ?? (try? c.decode(String.self, forKey: .name))
-        if let value = try? c.decode(Int.self, forKey: .year) {
+        if let value = try? c.decode(Int.self, forKey: .releaseYear) {
+            year = value
+        } else if let value = try? c.decode(Int.self, forKey: .year) {
             year = value
         } else if let value = try? c.decode(String.self, forKey: .year) {
             year = Int(value)
@@ -53,6 +73,14 @@ struct MDBListItem: Decodable, Identifiable {
         }
         poster = try? c.decode(String.self, forKey: .poster)
         overview = (try? c.decode(String.self, forKey: .overview)) ?? (try? c.decode(String.self, forKey: .description))
+    }
+
+    var importMediaType: String? {
+        switch mediaType?.lowercased() {
+        case "movie", "movies": "movie"
+        case "show", "tv", "series": "show"
+        default: nil
+        }
     }
 }
 
@@ -94,7 +122,8 @@ struct MDBListService {
                         URLQueryItem(name: "offset", value: String(offset)),
                         URLQueryItem(name: "append_to_response", value: "poster,description")]
             )
-            let page = try JSONDecoder().decode([MDBListItem].self, from: data)
+            let response = try JSONDecoder().decode(MDBListItemsResponse.self, from: data)
+            let page = response.allItems
             all.append(contentsOf: page)
             if page.count < pageSize { break }
             offset += page.count
