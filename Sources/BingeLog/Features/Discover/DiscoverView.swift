@@ -248,7 +248,7 @@ private struct TMDBTokenSheet: View {
         NavigationStack {
             Form {
                 Section("TMDB API Read Access Token") {
-                    SecureField("Klistra in din Bearer-token", text: $token, axis: .vertical)
+                    SecureField("Klistra in din Bearer-token", text: $token)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
