@@ -92,6 +92,7 @@ struct TMDBService {
 
         guard let url = components?.url else { throw TMDBError.invalidResponse }
         var request = URLRequest(url: url)
+        request.timeoutInterval = 25
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
