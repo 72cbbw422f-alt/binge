@@ -263,6 +263,7 @@ struct CalendarView: View {
         let start = Calendar.current.startOfDay(for: .now)
         let end = Calendar.current.date(byAdding: .day, value: 90, to: start) ?? start
         var found: [BingeReleaseItem] = []
+        var fetchError: String?
 
         for entry in entries {
             if entry.mediaKind == .movie {
@@ -309,15 +310,15 @@ struct CalendarView: View {
                     }
                 }
             } catch {
-                if found.isEmpty && errorMessage == nil {
-                    errorMessage = error.localizedDescription
+                if fetchError == nil {
+                    fetchError = error.localizedDescription
                 }
             }
         }
 
         releases = found.sorted { $0.date < $1.date }
-        if !entries.isEmpty && releases.isEmpty && errorMessage == nil {
-            // An empty calendar is a valid result when there are no confirmed future dates.
+        if releases.isEmpty {
+            errorMessage = fetchError
         }
     }
 
