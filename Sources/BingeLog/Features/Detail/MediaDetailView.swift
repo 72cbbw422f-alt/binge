@@ -313,7 +313,15 @@ struct MediaDetailView: View {
 
     private func toggleEpisode(_ episode: TMDBEpisode, progress: BingeEpisodeProgress?) {
         if let progress {
-            progress.watchedAt = progress.isWatched ? nil : .now
+            let wasWatched = progress.isWatched
+            progress.watchedAt = wasWatched ? nil : .now
+            modelContext.insert(BingeWatchEvent(
+                type: wasWatched ? .episodeUnwatched : .episodeWatched,
+                tmdbID: id,
+                mediaKind: .tv,
+                title: title,
+                detail: "S\(episode.seasonNumber) · A\(episode.episodeNumber) – \(episode.name)"
+            ))
         } else {
             let item = BingeEpisodeProgress(
                 seriesTMDBID: id,
@@ -323,6 +331,13 @@ struct MediaDetailView: View {
             )
             item.watchedAt = .now
             modelContext.insert(item)
+            modelContext.insert(BingeWatchEvent(
+                type: .episodeWatched,
+                tmdbID: id,
+                mediaKind: .tv,
+                title: title,
+                detail: "S\(episode.seasonNumber) · A\(episode.episodeNumber) – \(episode.name)"
+            ))
         }
     }
 
@@ -421,6 +436,15 @@ struct MediaDetailView: View {
     }
 
     private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
+        let previousStatus = entry.status
+        guard previousStatus != status else { return }
+        modelContext.insert(BingeWatchEvent(
+            type: .statusChanged,
+            tmdbID: entry.tmdbID,
+            mediaKind: entry.mediaKind,
+            title: entry.title,
+            detail: "\(previousStatus.title) → \(status.title)"
+        ))
         entry.status = status
         switch status {
         case .watching:
