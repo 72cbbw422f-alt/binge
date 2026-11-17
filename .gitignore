@@ -1,0 +1,20 @@
+# Xcode
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+
+# Generated project
+BingeLog.xcodeproj/
+
+# Secrets and local configuration
+.env
+.env.*
+Secrets.swift
+Config.local.swift
