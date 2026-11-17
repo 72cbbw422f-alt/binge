@@ -11,6 +11,7 @@ struct MDBListImportView: View {
     @State private var isImporting = false
     @State private var statusMessage: String?
     @State private var errorMessage: String?
+    @State private var showDisconnectConfirmation = false
     private let service = MDBListService()
 
     var body: some View {
@@ -44,6 +45,12 @@ struct MDBListImportView: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(BingeTheme.accent)
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    if SecureTokenStore.read(service: "BingeLog.MDBList") != nil {
+                        Button("Koppla från MDBList", role: .destructive) {
+                            showDisconnectConfirmation = true
+                        }
+                        .font(.footnote.weight(.semibold))
                     }
                 }
                 .padding(16)
@@ -128,6 +135,22 @@ struct MDBListImportView: View {
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog(
+            "Koppla från MDBList?",
+            isPresented: $showDisconnectConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Koppla från och ta bort nyckeln", role: .destructive) {
+                SecureTokenStore.delete(service: "BingeLog.MDBList")
+                apiKey = ""
+                lists = []
+                selectedListID = nil
+                statusMessage = "MDBList-nyckeln har tagits bort. Importerade titlar finns kvar i BingeLog."
+            }
+            Button("Avbryt", role: .cancel) {}
+        } message: {
+            Text("Endast den sparade API-nyckeln tas bort. Filmer, serier, betyg och tittarhistorik i BingeLog påverkas inte.")
+        }
     }
 
     @MainActor
