@@ -277,6 +277,30 @@ private struct ProfileView: View {
                     Text("Hantera anslutningar och importera din befintliga tittarhistorik.")
                         .font(.subheadline).foregroundStyle(BingeTheme.secondaryText)
                 }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("ANSLUTNINGAR")
+                        .font(.caption.weight(.bold))
+                        .tracking(1.3)
+                        .foregroundStyle(BingeTheme.secondaryText)
+                    connectionRow(
+                        title: "TMDB",
+                        subtitle: "Filmer, serier och premiärinformation",
+                        connected: SecureTokenStore.read(service: "BingeLog.TMDB") != nil,
+                        symbol: "film.stack"
+                    )
+                    connectionRow(
+                        title: "MDBList",
+                        subtitle: "Import av dina personliga listor",
+                        connected: SecureTokenStore.read(service: "BingeLog.MDBList") != nil,
+                        symbol: "list.bullet.rectangle"
+                    )
+                    Text("TMDB hanteras under Upptäck. MDBList hanteras via importfunktionen nedan.")
+                        .font(.caption2)
+                        .foregroundStyle(BingeTheme.secondaryText)
+                }
+                .padding(15)
+                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+
                 NavigationLink {
                     MDBListImportView()
                 } label: {
@@ -301,5 +325,27 @@ private struct ProfileView: View {
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func connectionRow(title: String, subtitle: String, connected: Bool, symbol: String) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: symbol)
+                .font(.headline)
+                .foregroundStyle(BingeTheme.accent)
+                .frame(width: 38, height: 38)
+                .background(BingeTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 11))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(BingeTheme.secondaryText)
+            }
+            Spacer()
+            Label(connected ? "Ansluten" : "Ej ansluten", systemImage: connected ? "checkmark.circle.fill" : "minus.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(connected ? BingeTheme.accent : BingeTheme.secondaryText)
+        }
     }
 }
