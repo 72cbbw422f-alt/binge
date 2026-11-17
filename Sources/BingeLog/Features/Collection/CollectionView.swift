@@ -8,113 +8,193 @@ struct CollectionView: View {
     @State private var selectedKind: BingeMediaKind?
 
     private var filteredEntries: [BingeEntry] {
-        entries.filter { entry in
-            (selectedStatus == nil || entry.status == selectedStatus) &&
-            (selectedKind == nil || entry.mediaKind == selectedKind)
+        entries.filter {
+            (selectedStatus == nil || $0.status == selectedStatus) &&
+            (selectedKind == nil || $0.mediaKind == selectedKind)
         }
+    }
+
+    private var visibleSections: [BingeWatchStatus] {
+        if let selectedStatus { return [selectedStatus] }
+        return [.watching, .planned, .completed, .onHold, .dropped]
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("DIN BIBLIOTEK")
-                        .font(.caption.weight(.bold))
-                        .tracking(1.5)
-                        .foregroundStyle(BingeTheme.accent)
-                    Text("Min samling")
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.white)
-                    Text("\(entries.count) titlar sparade")
-                        .font(.subheadline)
-                        .foregroundStyle(BingeTheme.secondaryText)
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        filterChip("Allt", isSelected: selectedStatus == nil) { selectedStatus = nil }
-                        ForEach(BingeWatchStatus.allCases) { status in
-                            filterChip(status.title, isSelected: selectedStatus == status) {
-                                selectedStatus = selectedStatus == status ? nil : status
-                            }
-                        }
-                    }
-                    .padding(.horizontal, BingeTheme.screenPadding)
-                }
-                .contentMargins(.horizontal, -BingeTheme.screenPadding)
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                statusOverview
 
                 HStack(spacing: 8) {
-                    filterChip("Alla", isSelected: selectedKind == nil) { selectedKind = nil }
-                    filterChip("Filmer", isSelected: selectedKind == .movie) {
-                        selectedKind = selectedKind == .movie ? nil : .movie
-                    }
-                    filterChip("Serier", isSelected: selectedKind == .tv) {
-                        selectedKind = selectedKind == .tv ? nil : .tv
+                    kindChip("Allt", kind: nil)
+                    kindChip("Filmer", kind: .movie)
+                    kindChip("Serier", kind: .tv)
+                }
+
+                ForEach(visibleSections) { status in
+                    let sectionEntries = filteredEntries.filter { $0.status == status }
+                    if !sectionEntries.isEmpty {
+                        statusSection(status, items: sectionEntries)
                     }
                 }
 
                 if filteredEntries.isEmpty {
                     ContentUnavailableView(
-                        entries.isEmpty ? "Samlingen är tom" : "Inga träffar",
+                        entries.isEmpty ? "Samlingen är tom" : "Inga titlar här",
                         systemImage: "rectangle.stack",
                         description: Text(entries.isEmpty
-                            ? "Spara filmer och serier från Upptäck så hamnar de här."
-                            : "Prova att ändra filtren.")
+                            ? "Sök efter filmer och serier i Upptäck och spara dem här."
+                            : "Välj en annan kategori eller byt filter.")
                     )
                     .foregroundStyle(.white)
-                    .padding(.top, 36)
-                } else {
-                    LazyVStack(spacing: 11) {
-                        ForEach(filteredEntries) { entry in
-                            entryRow(entry)
-                        }
-                    }
+                    .padding(.top, 28)
                 }
             }
-            .padding(BingeTheme.screenPadding)
+            .padding(.vertical, 18)
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func filterChip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(isSelected ? .black : BingeTheme.secondaryText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(isSelected ? BingeTheme.accent : BingeTheme.surface, in: Capsule())
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("DIN TITTARVÄRLD")
+                .font(.caption.weight(.bold))
+                .tracking(1.5)
+                .foregroundStyle(BingeTheme.accent)
+            HStack(alignment: .firstTextBaseline) {
+                Text("Min samling")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(entries.count) TITLAR")
+                    .font(.caption2.weight(.bold))
+                    .tracking(1)
+                    .foregroundStyle(BingeTheme.secondaryText)
+            }
+        }
+        .padding(.horizontal, BingeTheme.screenPadding)
+    }
+
+    private var statusOverview: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                overviewCard(.watching, subtitle: "Pågår")
+                overviewCard(.planned, subtitle: "På tur")
+                overviewCard(.completed, subtitle: "Avklarat")
+            }
+            .padding(.horizontal, BingeTheme.screenPadding)
+        }
+    }
+
+    private func overviewCard(_ status: BingeWatchStatus, subtitle: String) -> some View {
+        let count = entries.filter {
+            $0.status == status && (selectedKind == nil || $0.mediaKind == selectedKind)
+        }.count
+        return Button {
+            withAnimation(.snappy(duration: 0.25)) {
+                selectedStatus = selectedStatus == status ? nil : status
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: status.symbol)
+                        .font(.headline)
+                        .foregroundStyle(statusColor(status))
+                    Spacer()
+                    Circle()
+                        .fill(statusColor(status))
+                        .frame(width: 7, height: 7)
+                }
+                Text("\(count)")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BingeTheme.secondaryText)
+            }
+            .frame(width: 112, alignment: .leading)
+            .padding(14)
+            .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 17))
+            .overlay {
+                RoundedRectangle(cornerRadius: 17)
+                    .stroke(selectedStatus == status ? statusColor(status).opacity(0.8) : BingeTheme.separator, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
     }
 
-    private func entryRow(_ entry: BingeEntry) -> some View {
-        HStack(spacing: 12) {
-            AsyncImage(url: entry.posterURL) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    ZStack {
-                        BingeTheme.elevated
-                        Image(systemName: "film").foregroundStyle(BingeTheme.secondaryText)
+    private func kindChip(_ title: String, kind: BingeMediaKind?) -> some View {
+        let selected = selectedKind == kind
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) { selectedKind = kind }
+        } label: {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(selected ? .black : BingeTheme.secondaryText)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 9)
+                .background(selected ? BingeTheme.accent : BingeTheme.surface, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func statusSection(_ status: BingeWatchStatus, items: [BingeEntry]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(statusColor(status))
+                    .frame(width: 4, height: 20)
+                Text(status.title)
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                Text("\(items.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(statusColor(status))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(statusColor(status).opacity(0.13), in: Capsule())
+                Spacer()
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        selectedStatus = selectedStatus == status ? nil : status
                     }
+                } label: {
+                    Text(selectedStatus == status ? "Visa alla" : "Visa")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(BingeTheme.secondaryText)
                 }
             }
-            .frame(width: 62, height: 92)
-            .clipShape(RoundedRectangle(cornerRadius: 9))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(entry.title)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                HStack(spacing: 7) {
-                    Text(entry.mediaKind.title.uppercased())
-                    if let year = entry.year { Text("· \(year)") }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(items) { entry in
+                        posterCard(entry)
+                    }
                 }
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(BingeTheme.accent)
+                .padding(.horizontal, BingeTheme.screenPadding)
+            }
+            .contentMargins(.horizontal, -BingeTheme.screenPadding)
+        }
+    }
+
+    private func posterCard(_ entry: BingeEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                AsyncImage(url: entry.posterURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        ZStack {
+                            BingeTheme.elevated
+                            Image(systemName: entry.mediaKind == .movie ? "film" : "tv")
+                                .font(.title)
+                                .foregroundStyle(BingeTheme.secondaryText)
+                        }
+                    }
+                }
+                .frame(width: 118, height: 174)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
                 Menu {
                     ForEach(BingeWatchStatus.allCases) { status in
                         Button {
@@ -123,43 +203,37 @@ struct CollectionView: View {
                             Label(status.title, systemImage: status.symbol)
                         }
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: entry.status.symbol)
-                            .font(.caption.weight(.bold))
-                        Text(entry.status.title)
-                            .font(.caption.weight(.semibold))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .bold))
+                    Divider()
+                    Button("Ta bort", role: .destructive) {
+                        modelContext.delete(entry)
                     }
-                    .foregroundStyle(statusColor(entry.status))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(statusColor(entry.status).opacity(0.16), in: Capsule())
-                    .overlay(Capsule().stroke(statusColor(entry.status).opacity(0.42), lineWidth: 1))
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(.black.opacity(0.72), in: Circle())
                 }
-                .buttonStyle(.plain)
-                if let rating = entry.userRating {
-                    Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
-                        .font(.caption)
-                        .foregroundStyle(BingeTheme.secondaryText)
-                }
+                .padding(7)
             }
-            Spacer(minLength: 0)
-            Menu {
-                Button("Ta bort ur samlingen", role: .destructive) {
-                    modelContext.delete(entry)
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(BingeTheme.secondaryText)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
+
+            Text(entry.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .frame(width: 118, alignment: .leading)
+
+            HStack(spacing: 4) {
+                Image(systemName: entry.status.symbol)
+                Text(entry.status.title)
             }
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(statusColor(entry.status))
+            .lineLimit(1)
         }
-        .padding(10)
-        .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .frame(width: 118, alignment: .leading)
     }
+
     private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
         entry.status = status
         switch status {
@@ -183,5 +257,4 @@ struct CollectionView: View {
         case .dropped: Color(hex: 0xF07878)
         }
     }
-
 }
