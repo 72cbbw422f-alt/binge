@@ -244,8 +244,8 @@ struct CalendarView: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 4)
-            Text(item.date.formatted(.dateTime.hour().minute()))
-                .font(.caption2.monospacedDigit())
+            Text("Hela dagen")
+                .font(.caption2)
                 .foregroundStyle(BingeTheme.secondaryText)
         }
         .padding(11)
@@ -285,12 +285,12 @@ struct CalendarView: View {
                 let details = try await service.details(id: entry.tmdbID, mediaKind: .tv)
                 let seasons = (details.seasons ?? [])
                     .filter { $0.seasonNumber > 0 }
-                    .filter {
-                        guard let date = Self.parseDate($0.airDate) else { return true }
-                        let recentPast = Calendar.current.date(byAdding: .day, value: -60, to: start) ?? start
-                        return date >= recentPast && date <= end
+                    .filter { season in
+                        guard let date = Self.parseDate(season.airDate) else { return false }
+                        return date <= end
                     }
-                    .prefix(8)
+                    .sorted { $0.seasonNumber > $1.seasonNumber }
+                    .prefix(4)
 
                 for season in seasons {
                     let response = try await service.seasonDetails(
