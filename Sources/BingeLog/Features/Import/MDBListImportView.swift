@@ -159,8 +159,7 @@ struct MDBListImportView: View {
             for item in items {
                 guard let tmdbID = item.tmdbID,
                       let title = item.title,
-                      let rawType = item.mediaType?.lowercased(),
-                      rawType == "movie" || rawType == "show" || rawType == "tv" else {
+                      let rawType = item.importMediaType else {
                     skipped += 1
                     continue
                 }
