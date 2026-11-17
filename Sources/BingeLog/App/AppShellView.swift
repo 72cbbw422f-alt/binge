@@ -47,7 +47,7 @@ struct AppShellView: View {
         case .collection:
             PlaceholderSectionView(title: "Min samling", subtitle: "Dina filmer, serier och personliga listor samlade på ett ställe.", symbol: "rectangle.stack")
         case .discover:
-            PlaceholderSectionView(title: "Upptäck", subtitle: "Hitta nästa film eller serie att fastna för.", symbol: "safari")
+            DiscoverView()
         case .calendar:
             PlaceholderSectionView(title: "Kalender", subtitle: "Premiärer, nya avsnitt och kommande släpp.", symbol: "calendar")
         case .profile:
