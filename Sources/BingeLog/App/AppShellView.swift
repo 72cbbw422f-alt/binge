@@ -208,7 +208,7 @@ private struct HomeView: View {
     private func statCard(title: String, count: Int, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: symbol).foregroundStyle(BingeTheme.accent)
-            Text("\\(count)").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            Text("\(count)").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(.white)
             Text(title).font(.caption).foregroundStyle(BingeTheme.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
