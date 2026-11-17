@@ -130,15 +130,15 @@ struct TMDBDetailResponse: Decodable {
     }
     var backdropURL: URL? {
         guard let backdropPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w1280\\(backdropPath)")
+        return URL(string: "https://image.tmdb.org/t/p/w1280\(backdropPath)")
     }
     var posterURL: URL? {
         guard let posterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w500\\(posterPath)")
+        return URL(string: "https://image.tmdb.org/t/p/w500\(posterPath)")
     }
     var durationText: String? {
-        if let runtime, runtime > 0 { return "\\(runtime) min" }
-        if let first = episodeRunTime?.first { return "\\(first) min/avsnitt" }
+        if let runtime, runtime > 0 { return "\(runtime) min" }
+        if let first = episodeRunTime?.first { return "\(first) min/avsnitt" }
         return nil
     }
 }
@@ -163,7 +163,7 @@ struct TMDBCastMember: Decodable, Identifiable {
     }
     var profileURL: URL? {
         guard let profilePath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w185\\(profilePath)")
+        return URL(string: "https://image.tmdb.org/t/p/w185\(profilePath)")
     }
 }
 
@@ -179,6 +179,6 @@ struct TMDBVideo: Decodable, Identifiable {
     let type: String
     var youtubeURL: URL? {
         guard site == "YouTube" else { return nil }
-        return URL(string: "https://www.youtube.com/watch?v=\\(key)")
+        return URL(string: "https://www.youtube.com/watch?v=\(key)")
     }
 }
