@@ -366,21 +366,27 @@ struct CalendarView: View {
                     .prefix(4)
 
                 for season in seasons {
-                    let response = try await service.seasonDetails(
-                        seriesID: entry.tmdbID,
-                        seasonNumber: season.seasonNumber
-                    )
-                    for episode in response.episodes {
-                        guard let date = Self.parseDate(episode.airDate), date >= start, date <= end else { continue }
-                        found.append(BingeReleaseItem(
-                            id: "episode-\(entry.tmdbID)-\(episode.id)",
-                            tmdbID: entry.tmdbID,
-                            title: entry.title,
-                            detail: "S\(episode.seasonNumber) · E\(episode.episodeNumber)  \(episode.name)",
-                            date: date,
-                            kind: .episode,
-                            posterPath: entry.posterPath
-                        ))
+                    do {
+                        let response = try await service.seasonDetails(
+                            seriesID: entry.tmdbID,
+                            seasonNumber: season.seasonNumber
+                        )
+                        for episode in response.episodes {
+                            guard let date = Self.parseDate(episode.airDate), date >= start, date <= end else { continue }
+                            found.append(BingeReleaseItem(
+                                id: "episode-\(entry.tmdbID)-\(episode.id)",
+                                tmdbID: entry.tmdbID,
+                                title: entry.title,
+                                detail: "S\(episode.seasonNumber) · E\(episode.episodeNumber)  \(episode.name)",
+                                date: date,
+                                kind: .episode,
+                                posterPath: entry.posterPath
+                            ))
+                        }
+                    } catch {
+                        if fetchError == nil {
+                            fetchError = error.localizedDescription
+                        }
                     }
                 }
             } catch {
