@@ -259,6 +259,15 @@ struct CollectionView: View {
     }
 
     private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
+        let previousStatus = entry.status
+        guard previousStatus != status else { return }
+        modelContext.insert(BingeWatchEvent(
+            type: .statusChanged,
+            tmdbID: entry.tmdbID,
+            mediaKind: entry.mediaKind,
+            title: entry.title,
+            detail: "\(previousStatus.title) → \(status.title)"
+        ))
         entry.status = status
         switch status {
         case .watching:
