@@ -274,8 +274,13 @@ struct CalendarView: View {
         let end = Calendar.current.date(byAdding: .day, value: 90, to: start) ?? start
         var found: [BingeReleaseItem] = []
         var fetchError: String?
+        let service = TMDBService()
+        let relevantEntries = entries.filter {
+            $0.status == .planned || $0.status == .watching || $0.status == .onHold
+        }
+        var processedSeriesIDs = Set<Int>()
 
-        for entry in entries {
+        for entry in relevantEntries {
             if entry.mediaKind == .movie {
                 if let date = Self.parseDate(entry.releaseDate), date >= start, date <= end {
                     found.append(BingeReleaseItem(
@@ -291,8 +296,9 @@ struct CalendarView: View {
                 continue
             }
 
+            guard processedSeriesIDs.insert(entry.tmdbID).inserted else { continue }
+
             do {
-                let service = TMDBService()
                 let details = try await service.details(id: entry.tmdbID, mediaKind: .tv)
                 let seasons = (details.seasons ?? [])
                     .filter { $0.seasonNumber > 0 }
