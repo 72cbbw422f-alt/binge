@@ -78,6 +78,10 @@ struct MediaDetailView: View {
 
                 actionPanel
                 synopsis
+                if mediaKind == .tv {
+                    seriesProgressSection
+                    seasonsSection
+                }
                 castSection
                 trailerSection
                 if let errorMessage { errorNotice }
@@ -224,6 +228,34 @@ struct MediaDetailView: View {
         .padding(.horizontal, BingeTheme.screenPadding)
     }
 
+    private var seriesProgressSection: some View {
+        let seasons = details?.seasons?.filter { $0.seasonNumber > 0 } ?? []
+        let totalEpisodes = seasons.reduce(0) { $0 + $1.episodeCount }
+        let watchedEpisodes = episodeProgress.filter {
+            $0.seriesTMDBID == id && $0.isWatched && $0.seasonNumber > 0
+        }.count
+        let progress = totalEpisodes > 0 ? Double(watchedEpisodes) / Double(totalEpisodes) : 0
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                sectionTitle("Ditt serieframsteg")
+                Spacer()
+                Text("\(watchedEpisodes) av \(totalEpisodes) avsnitt")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(BingeTheme.accent)
+            }
+            ProgressView(value: progress)
+                .tint(BingeTheme.accent)
+                .scaleEffect(x: 1, y: 1.5, anchor: .center)
+            Text(totalEpisodes == 0 ? "Avsnittsdata är inte tillgänglig ännu." : "\(Int(progress * 100)) % av serien markerad som sedd")
+                .font(.caption)
+                .foregroundStyle(BingeTheme.secondaryText)
+        }
+        .padding(14)
+        .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, BingeTheme.screenPadding)
+    }
+
     private var seasonsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Säsonger och avsnitt")
@@ -236,7 +268,8 @@ struct MediaDetailView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(season.name).font(.headline).foregroundStyle(.white)
-                                    Text("\\(season.episodeCount) avsnitt").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                    let watched = episodeProgress.filter { $0.seriesTMDBID == id && $0.seasonNumber == season.seasonNumber && $0.isWatched }.count
+                                    Text("\(watched) av \(season.episodeCount) avsnitt sedda").font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
                                 Spacer()
                                 if loadingSeason == season.seasonNumber { ProgressView().tint(BingeTheme.accent) }
