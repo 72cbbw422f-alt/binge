@@ -114,23 +114,31 @@ struct CalendarView: View {
             }
 
             ForEach(groupedReleases, id: \.date) { group in
-                VStack(alignment: .leading, spacing: 10) {
-                    dateHeading(group.date)
-                    ForEach(group.items) { item in
-                        NavigationLink {
-                            MediaDetailView(
-                                id: item.tmdbID,
-                                mediaKind: item.kind == .movie ? .movie : .tv,
-                                fallbackTitle: item.title
-                            )
-                        } label: {
-                            releaseCard(item)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                releaseGroup(group)
             }
         }
+    }
+
+    private func releaseGroup(_ group: (date: Date, items: [BingeReleaseItem])) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            dateHeading(group.date)
+            ForEach(group.items) { item in
+                releaseNavigationLink(item)
+            }
+        }
+    }
+
+    private func releaseNavigationLink(_ item: BingeReleaseItem) -> some View {
+        NavigationLink {
+            MediaDetailView(
+                id: item.tmdbID,
+                mediaKind: item.kind == .movie ? .movie : .tv,
+                fallbackTitle: item.title
+            )
+        } label: {
+            releaseCard(item)
+        }
+        .buttonStyle(.plain)
     }
 
     private var attributionNote: some View {
