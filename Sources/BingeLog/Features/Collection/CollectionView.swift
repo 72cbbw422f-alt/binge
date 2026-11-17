@@ -6,11 +6,14 @@ struct CollectionView: View {
     @Query(sort: \BingeEntry.addedAt, order: .reverse) private var entries: [BingeEntry]
     @State private var selectedStatus: BingeWatchStatus?
     @State private var selectedKind: BingeMediaKind?
+    @State private var searchText = ""
 
     private var filteredEntries: [BingeEntry] {
         entries.filter {
             (selectedStatus == nil || $0.status == selectedStatus) &&
-            (selectedKind == nil || $0.mediaKind == selectedKind)
+            (selectedKind == nil || $0.mediaKind == selectedKind) &&
+            (searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+             $0.title.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines)))
         }
     }
 
@@ -24,6 +27,25 @@ struct CollectionView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 statusOverview
+
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(BingeTheme.secondaryText)
+                    TextField("Sök i din samling", text: $searchText)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .foregroundStyle(.white)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(BingeTheme.secondaryText)
+                        }
+                        .accessibilityLabel("Rensa sökning")
+                    }
+                }
+                .padding(13)
+                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                .padding(.horizontal, BingeTheme.screenPadding)
 
                 HStack(spacing: 8) {
                     kindChip("Allt", kind: nil)
