@@ -53,7 +53,7 @@ struct AppShellView: View {
 
 private struct HomeView: View {
     @Query private var entries: [BingeEntry]
-    @Query(sort: \\BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
+    @Query(sort: \BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
 
     private var watchingCount: Int { entries.filter { $0.status == .watching }.count }
     private var plannedCount: Int { entries.filter { $0.status == .planned }.count }
