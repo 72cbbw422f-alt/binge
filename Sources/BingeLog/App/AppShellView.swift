@@ -294,7 +294,7 @@ private struct ProfileView: View {
                         connected: SecureTokenStore.read(service: "BingeLog.MDBList") != nil,
                         symbol: "list.bullet.rectangle"
                     )
-                    Text("TMDB hanteras under Upptäck. MDBList hanteras via importfunktionen nedan.")
+                    Text("Statusen visar om en nyckel finns sparad – inte om tjänsten har verifierat den. TMDB hanteras under Upptäck och MDBList via importfunktionen nedan.")
                         .font(.caption2)
                         .foregroundStyle(BingeTheme.secondaryText)
                 }
@@ -343,7 +343,7 @@ private struct ProfileView: View {
                     .foregroundStyle(BingeTheme.secondaryText)
             }
             Spacer()
-            Label(connected ? "Ansluten" : "Ej ansluten", systemImage: connected ? "checkmark.circle.fill" : "minus.circle")
+            Label(connected ? "Nyckel sparad" : "Ej konfigurerad", systemImage: connected ? "checkmark.circle.fill" : "minus.circle")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(connected ? BingeTheme.accent : BingeTheme.secondaryText)
         }
