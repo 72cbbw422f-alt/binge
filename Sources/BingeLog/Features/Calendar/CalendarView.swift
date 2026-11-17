@@ -8,6 +8,7 @@ private struct BingeReleaseItem: Identifiable, Hashable {
     }
 
     let id: String
+    let tmdbID: Int
     let title: String
     let detail: String
     let date: Date
@@ -279,6 +280,7 @@ struct CalendarView: View {
                 if let date = Self.parseDate(entry.releaseDate), date >= start, date <= end {
                     found.append(BingeReleaseItem(
                         id: "movie-\(entry.tmdbID)",
+                        tmdbID: entry.tmdbID,
                         title: entry.title,
                         detail: "Filmpremiär",
                         date: date,
@@ -310,6 +312,7 @@ struct CalendarView: View {
                         guard let date = Self.parseDate(episode.airDate), date >= start, date <= end else { continue }
                         found.append(BingeReleaseItem(
                             id: "episode-\(entry.tmdbID)-\(episode.id)",
+                            tmdbID: entry.tmdbID,
                             title: entry.title,
                             detail: "S\(episode.seasonNumber) · E\(episode.episodeNumber)  \(episode.name)",
                             date: date,
