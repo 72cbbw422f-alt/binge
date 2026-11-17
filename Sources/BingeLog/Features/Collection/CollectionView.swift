@@ -8,6 +8,7 @@ struct CollectionView: View {
     @State private var selectedKind: BingeMediaKind?
     @State private var searchText = ""
     @State private var sortOrder = "recent"
+    @State private var entryPendingDeletion: BingeEntry?
 
     private var filteredEntries: [BingeEntry] {
         let filtered = entries.filter {
@@ -99,6 +100,26 @@ struct CollectionView: View {
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog(
+            "Ta bort från samlingen?",
+            isPresented: Binding(
+                get: { entryPendingDeletion != nil },
+                set: { if !$0 { entryPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Ta bort", role: .destructive) {
+                if let entryPendingDeletion {
+                    modelContext.delete(entryPendingDeletion)
+                }
+                entryPendingDeletion = nil
+            }
+            Button("Avbryt", role: .cancel) {
+                entryPendingDeletion = nil
+            }
+        } message: {
+            Text(entryPendingDeletion?.title ?? "Titeln")
+        }
     }
 
     private var header: some View {
@@ -262,7 +283,7 @@ struct CollectionView: View {
                     }
                     Divider()
                     Button("Ta bort", role: .destructive) {
-                        modelContext.delete(entry)
+                        entryPendingDeletion = entry
                     }
                 } label: {
                     Image(systemName: "ellipsis")
