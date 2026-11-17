@@ -156,6 +156,8 @@ struct MDBListImportView: View {
             let items = try await service.listItems(listID: selectedListID, apiKey: apiKey)
             var added = 0
             var skipped = 0
+            // Skip duplicates both in SwiftData and within the imported list.
+            var knownKeys = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
             for item in items {
                 guard let tmdbID = item.tmdbID,
                       let title = item.title,
@@ -164,8 +166,8 @@ struct MDBListImportView: View {
                     continue
                 }
                 let kind: BingeMediaKind = rawType == "movie" ? .movie : .tv
-                let exists = savedEntries.contains { $0.tmdbID == tmdbID && $0.mediaKind == kind }
-                guard !exists else { continue }
+                let key = "\(kind.rawValue)-\(tmdbID)"
+                guard knownKeys.insert(key).inserted else { continue }
                 let date = item.year.map { String($0) + "-01-01" }
                 let entry = BingeEntry(
                     tmdbID: tmdbID,
