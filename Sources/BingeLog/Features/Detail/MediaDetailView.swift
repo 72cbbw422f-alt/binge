@@ -10,7 +10,7 @@ struct MediaDetailView: View {
     let fallbackBackdropPath: String?
 
     @Environment(\.modelContext) private var modelContext
-    @Query private var entries: [BingeEntry]
+    @Query private var entries: [BingeEntry]\n    @Query private var episodeProgress: [BingeEpisodeProgress]\n    @State private var expandedSeason: Int?\n    @State private var loadedSeasons: [Int: [TMDBEpisode]] = [:]\n    @State private var loadingSeason: Int?
     @State private var details: TMDBDetailResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -218,6 +218,108 @@ struct MediaDetailView: View {
                 .lineSpacing(4)
         }
         .padding(.horizontal, BingeTheme.screenPadding)
+    }
+
+    private var seasonsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Säsonger och avsnitt")
+            if let seasons = details?.seasons?.filter({ $0.seasonNumber > 0 }), !seasons.isEmpty {
+                ForEach(seasons) { season in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Button {
+                            Task { await toggleSeason(season.seasonNumber) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(season.name).font(.headline).foregroundStyle(.white)
+                                    Text("\\(season.episodeCount) avsnitt").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                }
+                                Spacer()
+                                if loadingSeason == season.seasonNumber { ProgressView().tint(BingeTheme.accent) }
+                                else { Image(systemName: expandedSeason == season.seasonNumber ? "chevron.up" : "chevron.down").foregroundStyle(BingeTheme.accent) }
+                            }
+                            .padding(13)
+                            .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        if expandedSeason == season.seasonNumber {
+                            ForEach(loadedSeasons[season.seasonNumber] ?? []) { episode in
+                                episodeRow(episode)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("Säsongsinformation saknas.").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+            }
+        }
+        .padding(.horizontal, BingeTheme.screenPadding)
+    }
+
+    private func episodeRow(_ episode: TMDBEpisode) -> some View {
+        let progress = episodeProgress.first {
+            $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
+        }
+        return HStack(spacing: 10) {
+            if let url = episode.stillURL {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image { image.resizable().scaledToFill() }
+                    else { BingeTheme.elevated }
+                }
+                .frame(width: 92, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+            } else {
+                RoundedRectangle(cornerRadius: 7).fill(BingeTheme.elevated).frame(width: 92, height: 54)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("AVSNITT \\(episode.episodeNumber)").font(.caption2.weight(.bold)).foregroundStyle(BingeTheme.accent)
+                Text(episode.name).font(.caption.weight(.semibold)).foregroundStyle(.white).lineLimit(2)
+            }
+            Spacer()
+            Button {
+                toggleEpisode(episode, progress: progress)
+            } label: {
+                Image(systemName: progress?.isWatched == true ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(progress?.isWatched == true ? BingeTheme.accent : BingeTheme.secondaryText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(progress?.isWatched == true ? "Markera som ej sett" : "Markera som sett")
+        }
+        .padding(9)
+        .background(BingeTheme.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func toggleSeason(_ season: Int) async {
+        if expandedSeason == season {
+            expandedSeason = nil
+            return
+        }
+        expandedSeason = season
+        guard loadedSeasons[season] == nil else { return }
+        loadingSeason = season
+        defer { loadingSeason = nil }
+        do {
+            let response = try await service.seasonDetails(seriesID: id, seasonNumber: season)
+            loadedSeasons[season] = response.episodes.sorted { $0.episodeNumber < $1.episodeNumber }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func toggleEpisode(_ episode: TMDBEpisode, progress: BingeEpisodeProgress?) {
+        if let progress {
+            progress.watchedAt = progress.isWatched ? nil : .now
+        } else {
+            let item = BingeEpisodeProgress(
+                seriesTMDBID: id,
+                seasonNumber: episode.seasonNumber,
+                episodeNumber: episode.episodeNumber,
+                episodeName: episode.name
+            )
+            item.watchedAt = .now
+            modelContext.insert(item)
+        }
     }
 
     private var castSection: some View {
