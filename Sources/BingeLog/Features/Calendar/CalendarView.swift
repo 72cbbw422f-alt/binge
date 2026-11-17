@@ -337,6 +337,7 @@ struct CalendarView: View {
         var processedSeriesIDs = Set<Int>()
 
         for entry in relevantEntries {
+            guard !Task.isCancelled else { return }
             if entry.mediaKind == .movie {
                 if let date = Self.parseDate(entry.releaseDate), date >= start, date <= end {
                     found.append(BingeReleaseItem(
@@ -384,18 +385,21 @@ struct CalendarView: View {
                             ))
                         }
                     } catch {
+                        if Task.isCancelled { return }
                         if fetchError == nil {
                             fetchError = error.localizedDescription
                         }
                     }
                 }
             } catch {
+                if Task.isCancelled { return }
                 if fetchError == nil {
                     fetchError = error.localizedDescription
                 }
             }
         }
 
+        guard !Task.isCancelled else { return }
         releases = found.sorted { $0.date < $1.date }
         hasLoadedReleases = fetchError == nil || !found.isEmpty
         lastLoadedAt = hasLoadedReleases ? .now : nil
