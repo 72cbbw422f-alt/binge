@@ -147,48 +147,58 @@ struct DiscoverView: View {
     }
 
     private func resultRow(_ item: TMDBMediaItem) -> some View {
-        HStack(spacing: 13) {
-            AsyncImage(url: item.posterURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .empty:
-                    posterPlaceholder
-                case .failure:
-                    posterPlaceholder
-                @unknown default:
-                    posterPlaceholder
-                }
-            }
-            .frame(width: 76, height: 112)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+        HStack(spacing: 12) {
+            NavigationLink {
+                MediaDetailView(
+                    id: item.id,
+                    mediaKind: item.mediaType == .tv ? .tv : .movie,
+                    fallbackTitle: item.displayTitle,
+                    fallbackOverview: item.overview ?? "",
+                    fallbackPosterPath: item.posterPath,
+                    fallbackBackdropPath: item.backdropPath
+                )
+            } label: {
+                HStack(spacing: 12) {
+                    AsyncImage(url: item.posterURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            posterPlaceholder
+                        }
+                    }
+                    .frame(width: 76, height: 112)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.displayTitle)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                HStack(spacing: 8) {
-                    Text(item.mediaType?.displayName ?? "TITEL")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(BingeTheme.accent)
-                    if let year = item.year {
-                        Text(year).font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.displayTitle)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                        HStack(spacing: 8) {
+                            Text(item.mediaType?.displayName ?? "TITEL")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(BingeTheme.accent)
+                            if let year = item.year {
+                                Text(year).font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                            }
+                            if let rating = item.rating {
+                                Label(rating, systemImage: "star.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(BingeTheme.secondaryText)
+                            }
+                        }
+                        if let overview = item.overview, !overview.isEmpty {
+                            Text(overview)
+                                .font(.caption)
+                                .foregroundStyle(BingeTheme.secondaryText)
+                                .lineLimit(3)
+                        }
                     }
-                    if let rating = item.rating {
-                        Label(rating, systemImage: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(BingeTheme.secondaryText)
-                    }
-                }
-                if let overview = item.overview, !overview.isEmpty {
-                    Text(overview)
-                        .font(.caption)
-                        .foregroundStyle(BingeTheme.secondaryText)
-                        .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            Spacer(minLength: 0)
+            .buttonStyle(.plain)
+
             Button {
                 save(item)
             } label: {
