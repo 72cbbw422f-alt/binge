@@ -221,6 +221,6 @@ struct TMDBEpisode: Decodable, Identifiable {
     }
     var stillURL: URL? {
         guard let stillPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w300\\(stillPath)")
+        return URL(string: "https://image.tmdb.org/t/p/w300\(stillPath)")
     }
 }
