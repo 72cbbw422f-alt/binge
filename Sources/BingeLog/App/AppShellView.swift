@@ -56,6 +56,7 @@ private struct HomeView: View {
 
     private var watchingCount: Int { entries.filter { $0.status == .watching }.count }
     private var plannedCount: Int { entries.filter { $0.status == .planned }.count }
+    private var completedCount: Int { entries.filter { $0.status == .completed }.count }
     private var continueWatching: [BingeEntry] {
         entries.filter { $0.status == .watching && $0.mediaKind == .tv }
             .sorted { $0.updatedAt > $1.updatedAt }
@@ -94,9 +95,10 @@ private struct HomeView: View {
                         .foregroundStyle(BingeTheme.secondaryText)
                 }
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     statCard(title: "Tittar på", count: watchingCount, symbol: "play.circle")
                     statCard(title: "Vill se", count: plannedCount, symbol: "bookmark")
+                    statCard(title: "Sett klart", count: completedCount, symbol: "checkmark.circle")
                 }
 
                 if !continueWatching.isEmpty {
@@ -207,9 +209,9 @@ private struct HomeView: View {
 
     private func statCard(title: String, count: Int, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: symbol).foregroundStyle(BingeTheme.accent)
-            Text("\(count)").font(.system(size: 28, weight: .bold, design: .rounded)).foregroundStyle(.white)
-            Text(title).font(.caption).foregroundStyle(BingeTheme.secondaryText)
+            Image(systemName: symbol).font(.subheadline).foregroundStyle(BingeTheme.accent)
+            Text("\(count)").font(.system(size: 25, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            Text(title).font(.caption2).foregroundStyle(BingeTheme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(15)
