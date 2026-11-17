@@ -56,6 +56,25 @@ struct TMDBService {
         return try JSONDecoder().decode(TMDBDetailResponse.self, from: data)
     }
 
+    func seasonDetails(seriesID: Int, seasonNumber: Int) async throws -> TMDBSeasonResponse {
+        guard let token = SecureTokenStore.read(service: "BingeLog.TMDB") else {
+            throw TMDBError.missingToken
+        }
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("tv/\\(seriesID)/season/\\(seasonNumber)"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [URLQueryItem(name: "language", value: "sv-SE")]
+        guard let url = components?.url else { throw TMDBError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \\(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else { throw TMDBError.invalidResponse }
+        guard (200...299).contains(httpResponse.statusCode) else { throw TMDBError.httpStatus(httpResponse.statusCode) }
+        return try JSONDecoder().decode(TMDBSeasonResponse.self, from: data)
+    }
+
     func searchMulti(query: String, page: Int = 1) async throws -> TMDBSearchResponse {
         guard let token = SecureTokenStore.read(service: "BingeLog.TMDB") else {
             throw TMDBError.missingToken
