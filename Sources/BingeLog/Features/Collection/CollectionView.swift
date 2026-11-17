@@ -180,20 +180,32 @@ struct CollectionView: View {
     private func posterCard(_ entry: BingeEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: entry.posterURL) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        ZStack {
-                            BingeTheme.elevated
-                            Image(systemName: entry.mediaKind == .movie ? "film" : "tv")
-                                .font(.title)
-                                .foregroundStyle(BingeTheme.secondaryText)
+                NavigationLink {
+                    MediaDetailView(
+                        id: entry.tmdbID,
+                        mediaKind: entry.mediaKind,
+                        fallbackTitle: entry.title,
+                        fallbackOverview: entry.overview,
+                        fallbackPosterPath: entry.posterPath,
+                        fallbackBackdropPath: entry.backdropPath
+                    )
+                } label: {
+                    AsyncImage(url: entry.posterURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            ZStack {
+                                BingeTheme.elevated
+                                Image(systemName: entry.mediaKind == .movie ? "film" : "tv")
+                                    .font(.title)
+                                    .foregroundStyle(BingeTheme.secondaryText)
+                            }
                         }
                     }
+                    .frame(width: 118, height: 174)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .frame(width: 118, height: 174)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
 
                 Menu {
                     ForEach(BingeWatchStatus.allCases) { status in
@@ -217,11 +229,23 @@ struct CollectionView: View {
                 .padding(7)
             }
 
-            Text(entry.title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .frame(width: 118, alignment: .leading)
+            NavigationLink {
+                MediaDetailView(
+                    id: entry.tmdbID,
+                    mediaKind: entry.mediaKind,
+                    fallbackTitle: entry.title,
+                    fallbackOverview: entry.overview,
+                    fallbackPosterPath: entry.posterPath,
+                    fallbackBackdropPath: entry.backdropPath
+                )
+            } label: {
+                Text(entry.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .frame(width: 118, alignment: .leading)
+            }
+            .buttonStyle(.plain)
 
             HStack(spacing: 4) {
                 Image(systemName: entry.status.symbol)
