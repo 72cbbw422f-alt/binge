@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct BingeLogApp: App {
@@ -7,5 +8,6 @@ struct BingeLogApp: App {
             AppShellView()
                 .preferredColorScheme(.dark)
         }
+        .modelContainer(for: BingeEntry.self)
     }
 }
