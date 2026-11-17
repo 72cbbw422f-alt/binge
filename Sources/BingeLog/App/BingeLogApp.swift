@@ -8,6 +8,6 @@ struct BingeLogApp: App {
             AppShellView()
                 .preferredColorScheme(.dark)
         }
-        .modelContainer(for: [BingeEntry.self, BingeEpisodeProgress.self])
+        .modelContainer(for: [BingeEntry.self, BingeEpisodeProgress.self, BingeWatchEvent.self])
     }
 }
