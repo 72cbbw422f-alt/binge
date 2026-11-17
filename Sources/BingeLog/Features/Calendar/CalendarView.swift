@@ -29,6 +29,7 @@ struct CalendarView: View {
     @State private var releases: [BingeReleaseItem] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var partialErrorMessage: String?
     @State private var horizon = 30
     @State private var lastLoadedAt: Date?
     @State private var hasLoadedReleases = false
@@ -117,6 +118,24 @@ struct CalendarView: View {
 
             ForEach(groupedReleases, id: \.date) { group in
                 releaseGroup(group)
+            }
+            if let partialErrorMessage {
+                HStack(alignment: .top, spacing: 9) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(BingeTheme.accent)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Alla serier kunde inte uppdateras")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(BingeTheme.primaryText)
+                        Text("Vissa premiärer kan saknas tills nästa uppdatering. \(partialErrorMessage)")
+                            .font(.caption2)
+                            .foregroundStyle(BingeTheme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
             }
         }
     }
@@ -304,6 +323,7 @@ struct CalendarView: View {
         }
         isLoading = true
         errorMessage = nil
+        partialErrorMessage = nil
         defer { isLoading = false }
 
         let start = Calendar.current.startOfDay(for: .now)
@@ -375,6 +395,8 @@ struct CalendarView: View {
         lastLoadedAt = hasLoadedReleases ? .now : nil
         if releases.isEmpty {
             errorMessage = fetchError
+        } else {
+            partialErrorMessage = fetchError
         }
     }
 
