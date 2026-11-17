@@ -10,7 +10,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var symbol: String {
-        switch self {
+        return switch self {
         case .home: "house"
         case .collection: "rectangle.stack"
         case .discover: "safari"
@@ -95,14 +95,12 @@ private struct HomeView: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            Button {} label: {
-                Image(systemName: "bell")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(BingeTheme.surface, in: Circle())
-            }
-            .accessibilityLabel("Notiser")
+            Image(systemName: "bell")
+                .font(.title3)
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(BingeTheme.surface, in: Circle())
+                .accessibilityLabel("Notiser")
         }
     }
 }
