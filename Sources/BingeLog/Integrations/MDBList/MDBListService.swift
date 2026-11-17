@@ -103,7 +103,7 @@ struct MDBListService {
     }
 
     private func request(path: String, apiKey: String, extra: [URLQueryItem] = []) async throws -> Data {
-        guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+        guard var components = URLComponents(string: "https://api.mdblist.com" + path) else {
             throw MDBListError.invalidURL
         }
         components.queryItems = [URLQueryItem(name: "apikey", value: apiKey)] + extra
