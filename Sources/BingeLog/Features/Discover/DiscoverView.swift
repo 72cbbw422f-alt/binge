@@ -1,6 +1,9 @@
+import SwiftData
 import SwiftUI
 
 struct DiscoverView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var savedEntries: [BingeEntry]
     @State private var query = ""
     @State private var results: [TMDBMediaItem] = []
     @State private var isLoading = false
@@ -186,9 +189,44 @@ struct DiscoverView: View {
                 }
             }
             Spacer(minLength: 0)
+            Button {
+                save(item)
+            } label: {
+                Image(systemName: isSaved(item) ? "checkmark" : "plus")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(isSaved(item) ? BingeTheme.accent : .black)
+                    .frame(width: 38, height: 38)
+                    .background(isSaved(item) ? BingeTheme.accent.opacity(0.14) : BingeTheme.accent, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isSaved(item))
+            .accessibilityLabel(isSaved(item) ? "Redan sparad" : "Lägg till i samlingen")
         }
         .padding(10)
         .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func isSaved(_ item: TMDBMediaItem) -> Bool {
+        savedEntries.contains {
+            $0.tmdbID == item.id && $0.mediaKind.rawValue == item.mediaType?.rawValue
+        }
+    }
+
+    private func save(_ item: TMDBMediaItem) {
+        guard let type = item.mediaType, type == .movie || type == .tv, !isSaved(item) else { return }
+        let entry = BingeEntry(
+            tmdbID: item.id,
+            mediaKind: type == .movie ? .movie : .tv,
+            title: item.displayTitle,
+            originalTitle: item.originalTitle ?? item.originalName ?? "",
+            posterPath: item.posterPath,
+            backdropPath: item.backdropPath,
+            overview: item.overview ?? "",
+            releaseDate: item.releaseDate ?? item.firstAirDate,
+            tmdbRating: item.voteAverage,
+            status: .planned
+        )
+        modelContext.insert(entry)
     }
 
     private var posterPlaceholder: some View {
