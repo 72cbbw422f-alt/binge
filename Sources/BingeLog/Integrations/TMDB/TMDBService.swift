@@ -42,6 +42,7 @@ struct TMDBService {
 
         guard let url = components?.url else { throw TMDBError.invalidResponse }
         var request = URLRequest(url: url)
+        request.timeoutInterval = 25
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -67,6 +68,7 @@ struct TMDBService {
         components?.queryItems = [URLQueryItem(name: "language", value: "sv-SE")]
         guard let url = components?.url else { throw TMDBError.invalidResponse }
         var request = URLRequest(url: url)
+        request.timeoutInterval = 25
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
