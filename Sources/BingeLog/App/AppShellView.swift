@@ -44,8 +44,7 @@ struct AppShellView: View {
         case .home: HomeView()
         case .collection: CollectionView()
         case .discover: DiscoverView()
-        case .calendar:
-            PlaceholderSectionView(title: "Kalender", subtitle: "Premiärer, nya avsnitt och kommande släpp.", symbol: "calendar")
+        case .calendar: CalendarView()
         case .profile: ProfileView()
         }
     }
