@@ -1,6 +1,6 @@
 import Foundation
 
-enum TMDBMediaType: String, Decodable {
+enum TMDBMediaType: String, Decodable, Hashable {
     case movie
     case tv
     case person
