@@ -30,16 +30,18 @@ struct CollectionView: View {
                         .foregroundStyle(BingeTheme.secondaryText)
                 }
 
-                HStack(spacing: 8) {
-                    filterChip("Allt", isSelected: selectedStatus == nil) { selectedStatus = nil }
-                    ForEach(BingeWatchStatus.allCases) { status in
-                        filterChip(status.title, isSelected: selectedStatus == status) {
-                            selectedStatus = selectedStatus == status ? nil : status
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        filterChip("Allt", isSelected: selectedStatus == nil) { selectedStatus = nil }
+                        ForEach(BingeWatchStatus.allCases) { status in
+                            filterChip(status.title, isSelected: selectedStatus == status) {
+                                selectedStatus = selectedStatus == status ? nil : status
+                            }
                         }
                     }
+                    .padding(.horizontal, BingeTheme.screenPadding)
                 }
-                .scrollClipDisabled()
-                .padding(.horizontal, -BingeTheme.screenPadding)
+                .contentMargins(.horizontal, -BingeTheme.screenPadding)
 
                 HStack(spacing: 8) {
                     filterChip("Alla", isSelected: selectedKind == nil) { selectedKind = nil }
@@ -113,9 +115,30 @@ struct CollectionView: View {
                 }
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(BingeTheme.accent)
-                Label(entry.status.title, systemImage: entry.status.symbol)
-                    .font(.caption)
-                    .foregroundStyle(BingeTheme.secondaryText)
+                Menu {
+                    ForEach(BingeWatchStatus.allCases) { status in
+                        Button {
+                            updateStatus(entry, to: status)
+                        } label: {
+                            Label(status.title, systemImage: status.symbol)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: entry.status.symbol)
+                            .font(.caption.weight(.bold))
+                        Text(entry.status.title)
+                            .font(.caption.weight(.semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .foregroundStyle(statusColor(entry.status))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(statusColor(entry.status).opacity(0.16), in: Capsule())
+                    .overlay(Capsule().stroke(statusColor(entry.status).opacity(0.42), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
                 if let rating = entry.userRating {
                     Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
                         .font(.caption)
@@ -124,14 +147,6 @@ struct CollectionView: View {
             }
             Spacer(minLength: 0)
             Menu {
-                ForEach(BingeWatchStatus.allCases) { status in
-                    Button {
-                        entry.status = status
-                    } label: {
-                        Label(status.title, systemImage: status.symbol)
-                    }
-                }
-                Divider()
                 Button("Ta bort ur samlingen", role: .destructive) {
                     modelContext.delete(entry)
                 }
@@ -145,4 +160,28 @@ struct CollectionView: View {
         .padding(10)
         .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
+    private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
+        entry.status = status
+        switch status {
+        case .watching:
+            if entry.startedAt == nil { entry.startedAt = .now }
+            entry.completedAt = nil
+        case .completed:
+            entry.completedAt = .now
+            if entry.startedAt == nil { entry.startedAt = entry.addedAt }
+        case .planned, .onHold, .dropped:
+            entry.completedAt = nil
+        }
+    }
+
+    private func statusColor(_ status: BingeWatchStatus) -> Color {
+        switch status {
+        case .planned: Color(hex: 0x68A9FF)
+        case .watching: BingeTheme.accent
+        case .completed: Color(hex: 0x42D6A4)
+        case .onHold: Color(hex: 0xF5B94C)
+        case .dropped: Color(hex: 0xF07878)
+        }
+    }
+
 }
