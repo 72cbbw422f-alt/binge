@@ -137,7 +137,7 @@ struct MDBListImportView: View {
         errorMessage = nil
         statusMessage = nil
         do {
-            try SecureTokenStore.save(apiKey, service: "BingeLog.MDBList")
+            SecureTokenStore.save(apiKey, service: "BingeLog.MDBList")
             lists = try await service.userLists(apiKey: apiKey)
             if lists.isEmpty { statusMessage = "Inga egna listor hittades på kontot." }
         } catch {
