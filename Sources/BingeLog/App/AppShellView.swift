@@ -64,6 +64,12 @@ private struct HomeView: View {
         guard !ratedEntries.isEmpty else { return nil }
         return ratedEntries.compactMap(\.userRating).reduce(0, +) / Double(ratedEntries.count)
     }
+    private var currentMonthEvents: [BingeWatchEvent] {
+        events.filter { Calendar.current.isDate($0.occurredAt, equalTo: .now, toGranularity: .month) }
+    }
+    private var activeDaysThisMonth: Int {
+        Set(currentMonthEvents.map { Calendar.current.startOfDay(for: $0.occurredAt) }).count
+    }
     private var continueWatching: [BingeEntry] {
         entries.filter { $0.status == .watching && $0.mediaKind == .tv }
             .sorted { $0.updatedAt > $1.updatedAt }
@@ -114,6 +120,14 @@ private struct HomeView: View {
                         insightCard(title: "Filmer", value: "\(completedMoviesCount)", detail: "Sett klart", symbol: "film")
                         insightCard(title: "Serier", value: "\(completedSeriesCount)", detail: "Sett klart", symbol: "tv")
                         insightCard(title: "Snittbetyg", value: averagePersonalRating.map { String(format: "%.1f", $0) } ?? "–", detail: "\(ratedEntries.count) betyg", symbol: "star")
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionHeading("Din aktivitet", subtitle: "Så har du använt BingeLog den här månaden")
+                    HStack(spacing: 10) {
+                        insightCard(title: "Aktiviteter", value: "\(currentMonthEvents.count)", detail: "Den här månaden", symbol: "chart.bar")
+                        insightCard(title: "Aktiva dagar", value: "\(activeDaysThisMonth)", detail: "Med registrerad aktivitet", symbol: "calendar")
                     }
                 }
 
