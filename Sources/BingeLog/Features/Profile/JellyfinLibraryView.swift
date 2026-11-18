@@ -52,44 +52,23 @@ struct JellyfinLibraryView: View {
         let migrationKey = "BingeLog.Jellyfin.ManualMatchesMigrationV1"
         guard !defaults.bool(forKey: migrationKey),
               let legacyMatches = defaults.dictionary(forKey: "BingeLog.Jellyfin.ManualMatches") as? [String: Int],
-              !legacyMatches.isEmpty,
               let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server"),
-              var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+              let migrated = JellyfinManualMatchIdentity.migratedMatches(
+                legacy: legacyMatches,
+                existing: manualMatches,
+                server: rawServer
+              ) else {
             return
         }
 
-        components.scheme = components.scheme?.lowercased()
-        components.host = components.host?.lowercased()
-        components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        components.query = nil
-        components.fragment = nil
-        guard let serverIdentity = components.string else { return }
-
-        for (itemID, tmdbID) in legacyMatches {
-            let scopedKey = "\(serverIdentity)|\(itemID)"
-            if manualMatches[scopedKey] == nil {
-                manualMatches[scopedKey] = tmdbID
-            }
-        }
-        defaults.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
+        manualMatches = migrated
+        defaults.set(migrated, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
         defaults.set(true, forKey: migrationKey)
     }
 
     private func manualMatchKey(for item: JellyfinLibraryItem) -> String {
         let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "unknown-server"
-        guard var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            return "\(rawServer)|\(item.id)"
-        }
-        let normalizedScheme = components.scheme?.lowercased()
-        let normalizedHost = components.host?.lowercased()
-        let normalizedPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        components.scheme = normalizedScheme
-        components.host = normalizedHost
-        components.path = normalizedPath
-        components.query = nil
-        components.fragment = nil
-        let serverIdentity = components.string
-        return "\(serverIdentity)|\(item.id)"
+        return JellyfinManualMatchIdentity.key(server: rawServer, itemID: item.id)
     }
 
     private var filteredItems: [JellyfinLibraryItem] {
