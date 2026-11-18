@@ -27,6 +27,13 @@ struct MediaDetailView: View {
         entries.first { $0.tmdbID == id && $0.mediaKind == mediaKind }
     }
 
+    private var retainedWatchedEpisodeCount: Int {
+        guard mediaKind == .tv else { return 0 }
+        return episodeProgress.filter {
+            $0.seriesTMDBID == id && $0.isWatched
+        }.count
+    }
+
     private var title: String { details?.displayTitle ?? fallbackTitle }
     private var overview: String {
         let value = details?.overview ?? fallbackOverview
@@ -183,14 +190,26 @@ struct MediaDetailView: View {
                     modelContext.insert(entry)
                     saveChanges()
                 } label: {
-                    Label("Lägg till i Vill se", systemImage: "bookmark.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(BingeTheme.accent, in: RoundedRectangle(cornerRadius: 13))
-                        .foregroundStyle(.black)
+                    Label(
+                        retainedWatchedEpisodeCount > 0 ? "Lägg tillbaka i samlingen" : "Lägg till i Vill se",
+                        systemImage: retainedWatchedEpisodeCount > 0 ? "arrow.uturn.backward" : "bookmark.fill"
+                    )
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(BingeTheme.accent, in: RoundedRectangle(cornerRadius: 13))
+                    .foregroundStyle(.black)
                 }
                 .buttonStyle(.plain)
+
+                if retainedWatchedEpisodeCount > 0 {
+                    Label(
+                        "\(retainedWatchedEpisodeCount) tidigare sedda avsnitt finns kvar",
+                        systemImage: "checkmark.circle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(BingeTheme.accent)
+                }
             }
 
             if savedEntry != nil {
