@@ -136,7 +136,7 @@ struct JellyfinConnectionView: View {
                 username: username,
                 password: password
             )
-            guard JellyfinService.saveConnection(server: serverAddress.trimmingCharacters(in: .whitespacesAndNewlines), username: result.user.name, token: result.accessToken) else {
+            guard JellyfinService.saveConnection(server: serverAddress.trimmingCharacters(in: .whitespacesAndNewlines), username: result.user.name, userID: result.user.id, token: result.accessToken) else {
                 errorMessage = "Inloggningen lyckades men anslutningen kunde inte sparas i nyckelringen."
                 return
             }
