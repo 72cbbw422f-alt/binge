@@ -156,7 +156,7 @@ struct JellyfinLibraryView: View {
                             Text("Jämförelsen är bara ett underlag. Inga statusar ändras i BingeLog.")
                                 .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                             ForEach(watchStateDifferences) { difference in
-                                VStack(alignment: .leading, spacing: 5) {
+                                VStack(alignment: .leading, spacing: 7) {
                                     Text(difference.item.name)
                                         .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                                     HStack {
@@ -165,16 +165,16 @@ struct JellyfinLibraryView: View {
                                         Text("Jellyfin: \(difference.jellyfinStatus)")
                                     }
                                     .font(.caption).foregroundStyle(BingeTheme.secondaryText)
-                                }
-                                if difference.item.userData?.played == true {
-                                    Button {
-                                        differenceToConfirm = difference
-                                    } label: {
-                                        Label("Markera som sett i BingeLog", systemImage: "checkmark.circle")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(BingeTheme.accent)
+                                    if difference.item.userData?.played == true {
+                                        Button {
+                                            differenceToConfirm = difference
+                                        } label: {
+                                            Label("Markera som sett i BingeLog", systemImage: "checkmark.circle")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(BingeTheme.accent)
+                                        }
+                                        .padding(.top, 3)
                                     }
-                                    .padding(.top, 3)
                                 }
                                 .padding(11)
                                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
