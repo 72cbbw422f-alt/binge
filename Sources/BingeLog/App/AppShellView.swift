@@ -57,6 +57,13 @@ private struct HomeView: View {
     private var watchingCount: Int { entries.filter { $0.status == .watching }.count }
     private var plannedCount: Int { entries.filter { $0.status == .planned }.count }
     private var completedCount: Int { entries.filter { $0.status == .completed }.count }
+    private var completedMoviesCount: Int { entries.filter { $0.status == .completed && $0.mediaKind == .movie }.count }
+    private var completedSeriesCount: Int { entries.filter { $0.status == .completed && $0.mediaKind == .tv }.count }
+    private var ratedEntries: [BingeEntry] { entries.filter { $0.userRating != nil } }
+    private var averagePersonalRating: Double? {
+        guard !ratedEntries.isEmpty else { return nil }
+        return ratedEntries.compactMap(\.userRating).reduce(0, +) / Double(ratedEntries.count)
+    }
     private var continueWatching: [BingeEntry] {
         entries.filter { $0.status == .watching && $0.mediaKind == .tv }
             .sorted { $0.updatedAt > $1.updatedAt }
@@ -99,6 +106,15 @@ private struct HomeView: View {
                     statCard(title: "Tittar på", count: watchingCount, symbol: "play.circle")
                     statCard(title: "Vill se", count: plannedCount, symbol: "bookmark")
                     statCard(title: "Sett klart", count: completedCount, symbol: "checkmark.circle")
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionHeading("Din statistik", subtitle: "En snabb överblick över det du sett")
+                    HStack(spacing: 10) {
+                        insightCard(title: "Filmer", value: "\(completedMoviesCount)", detail: "Sett klart", symbol: "film")
+                        insightCard(title: "Serier", value: "\(completedSeriesCount)", detail: "Sett klart", symbol: "tv")
+                        insightCard(title: "Snittbetyg", value: averagePersonalRating.map { String(format: "%.1f", $0) } ?? "–", detail: "\(ratedEntries.count) betyg", symbol: "star")
+                    }
                 }
 
                 if !continueWatching.isEmpty {
@@ -205,6 +221,18 @@ private struct HomeView: View {
             Text(title).font(.title3.bold()).foregroundStyle(.white)
             Text(subtitle).font(.caption).foregroundStyle(BingeTheme.secondaryText)
         }
+    }
+
+    private func insightCard(title: String, value: String, detail: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: symbol).font(.subheadline).foregroundStyle(BingeTheme.accent)
+            Text(value).font(.system(size: 23, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.white)
+            Text(detail).font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 15))
     }
 
     private func statCard(title: String, count: Int, symbol: String) -> some View {
