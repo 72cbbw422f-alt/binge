@@ -146,7 +146,7 @@ struct JellyfinService {
 
         while startIndex < expectedTotal {
             var components = URLComponents(
-                url: baseURL.appendingPathComponent("Users/" + userID + "/Items"),
+                url: baseURL.appendingPathComponent("Users").appendingPathComponent(userID).appendingPathComponent("Items"),
                 resolvingAgainstBaseURL: false
             )
             components?.queryItems = [
