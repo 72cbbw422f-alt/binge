@@ -432,6 +432,26 @@ private struct ProfileView: View {
                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
 
                 NavigationLink {
+                    JellyfinLibraryView()
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "rectangle.stack")
+                            .font(.title2).foregroundStyle(BingeTheme.accent)
+                            .frame(width: 46, height: 46)
+                            .background(BingeTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Jellyfin-bibliotek").font(.headline).foregroundStyle(.white)
+                            Text("Hämta och importera filmer och serier").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(BingeTheme.secondaryText)
+                    }
+                    .padding(15)
+                    .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
                     JellyfinConnectionView()
                 } label: {
                     HStack(spacing: 14) {
