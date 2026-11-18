@@ -43,8 +43,8 @@ struct JellyfinLibraryView: View {
     private var watchStateDifferences: [JellyfinWatchStateDifference] {
         supportedItems.compactMap { item in
             guard let id = item.tmdbID, let kind = item.mediaKind,
+                  let jellyfinPlayed = item.userData?.played,
                   let local = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) else { return nil }
-            let jellyfinPlayed = item.userData?.played == true
             let localCompleted = local.status == .completed
             guard jellyfinPlayed != localCompleted else { return nil }
             return JellyfinWatchStateDifference(item: item, localStatus: local.status.title, jellyfinStatus: jellyfinPlayed ? "Markerad som sedd" : "Inte markerad som sedd")
