@@ -37,3 +37,12 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Run unit tests
+        run: |
+          xcodebuild \
+            -project BingeLog.xcodeproj \
+            -scheme BingeLog \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
