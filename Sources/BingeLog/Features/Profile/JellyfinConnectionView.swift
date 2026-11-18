@@ -33,7 +33,7 @@ struct JellyfinConnectionView: View {
                             .font(.headline).foregroundStyle(BingeTheme.accent)
                         Text(SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "")
                             .font(.caption).foregroundStyle(BingeTheme.secondaryText)
-                        Text("Inloggad som (SecureTokenStore.read(service: "BingeLog.Jellyfin.Username") ?? "Jellyfin-användare")")
+                        Text("Inloggad som \\(SecureTokenStore.read(service: \"BingeLog.Jellyfin.Username\") ?? \"Jellyfin-användare\")")
                             .font(.subheadline).foregroundStyle(.white)
                         Button("Koppla från Jellyfin", role: .destructive) {
                             showDisconnectConfirmation = true
