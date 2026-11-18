@@ -48,7 +48,11 @@ struct JellyfinUser: Decodable {
 
 struct JellyfinLibraryResponse: Decodable {
     let items: [JellyfinLibraryItem]
-    enum CodingKeys: String, CodingKey { case items = "Items" }
+    let totalRecordCount: Int
+    enum CodingKeys: String, CodingKey {
+        case items = "Items"
+        case totalRecordCount = "TotalRecordCount"
+    }
 }
 
 struct JellyfinLibraryItem: Decodable, Identifiable {
@@ -135,33 +139,49 @@ struct JellyfinService {
             throw JellyfinError.missingConnection
         }
 
-        var components = URLComponents(
-            url: baseURL.appendingPathComponent("Users/" + userID + "/Items"),
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = [
-            URLQueryItem(name: "Recursive", value: "true"),
-            URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
-            URLQueryItem(name: "Fields", value: "ProviderIds,Overview,ProductionYear"),
-            URLQueryItem(name: "SortBy", value: "SortName"),
-            URLQueryItem(name: "SortOrder", value: "Ascending"),
-            URLQueryItem(name: "Limit", value: "1000")
-        ]
-        guard let url = components?.url else { throw JellyfinError.invalidResponse }
+        let pageSize = 200
+        var startIndex = 0
+        var allItems: [JellyfinLibraryItem] = []
+        var expectedTotal = Int.max
 
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 30
-        request.setValue(authorizationHeader(token: token), forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        while startIndex < expectedTotal {
+            var components = URLComponents(
+                url: baseURL.appendingPathComponent("Users/" + userID + "/Items"),
+                resolvingAgainstBaseURL: false
+            )
+            components?.queryItems = [
+                URLQueryItem(name: "Recursive", value: "true"),
+                URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
+                URLQueryItem(name: "Fields", value: "ProviderIds,Overview,ProductionYear"),
+                URLQueryItem(name: "SortBy", value: "SortName"),
+                URLQueryItem(name: "SortOrder", value: "Ascending"),
+                URLQueryItem(name: "StartIndex", value: String(startIndex)),
+                URLQueryItem(name: "Limit", value: String(pageSize))
+            ]
+            guard let url = components?.url else { throw JellyfinError.invalidResponse }
 
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw JellyfinError.invalidResponse }
-        guard (200...299).contains(http.statusCode) else { throw JellyfinError.httpStatus(http.statusCode) }
-        do {
-            return try JSONDecoder().decode(JellyfinLibraryResponse.self, from: data).items
-        } catch {
-            throw JellyfinError.invalidResponse
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 30
+            request.setValue(authorizationHeader(token: token), forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw JellyfinError.invalidResponse }
+            guard (200...299).contains(http.statusCode) else { throw JellyfinError.httpStatus(http.statusCode) }
+            let page: JellyfinLibraryResponse
+            do {
+                page = try JSONDecoder().decode(JellyfinLibraryResponse.self, from: data)
+            } catch {
+                throw JellyfinError.invalidResponse
+            }
+
+            expectedTotal = page.totalRecordCount
+            allItems.append(contentsOf: page.items)
+            if page.items.isEmpty { break }
+            startIndex += page.items.count
         }
+
+        return allItems
     }
 
     func disconnect() async {
