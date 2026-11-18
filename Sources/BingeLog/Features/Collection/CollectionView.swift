@@ -9,6 +9,7 @@ struct CollectionView: View {
     @State private var searchText = ""
     @State private var sortOrder = "recent"
     @State private var entryPendingDeletion: BingeEntry?
+    @State private var persistenceError: String?
 
     private var filteredEntries: [BingeEntry] {
         let filtered = entries.filter {
@@ -120,6 +121,11 @@ struct CollectionView: View {
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .alert("Kunde inte spara ändringen", isPresented: Binding(get: { persistenceError != nil }, set: { if !$0 { persistenceError = nil } })) {
+            Button("OK", role: .cancel) { persistenceError = nil }
+        } message: {
+            Text(persistenceError ?? "Försök igen.")
+        }
         .confirmationDialog(
             "Ta bort från samlingen?",
             isPresented: Binding(
@@ -131,6 +137,7 @@ struct CollectionView: View {
             Button("Ta bort", role: .destructive) {
                 if let entryPendingDeletion {
                     modelContext.delete(entryPendingDeletion)
+                    saveChanges()
                 }
                 entryPendingDeletion = nil
             }
@@ -364,6 +371,17 @@ struct CollectionView: View {
             if entry.startedAt == nil { entry.startedAt = entry.addedAt }
         case .planned, .onHold, .dropped:
             entry.completedAt = nil
+        }
+        saveChanges()
+    }
+
+    private func saveChanges() {
+        do {
+            try modelContext.save()
+            persistenceError = nil
+        } catch {
+            modelContext.rollback()
+            persistenceError = error.localizedDescription
         }
     }
 
