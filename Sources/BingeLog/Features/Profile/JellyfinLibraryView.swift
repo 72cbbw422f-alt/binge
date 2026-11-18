@@ -47,6 +47,34 @@ struct JellyfinLibraryView: View {
 
     // Jellyfin item IDs are only unique within a server. Scope manual matches to
     // the connected server so switching servers cannot silently reuse a match.
+    private func migrateLegacyManualMatches() {
+        let defaults = UserDefaults.standard
+        let migrationKey = "BingeLog.Jellyfin.ManualMatchesMigrationV1"
+        guard !defaults.bool(forKey: migrationKey),
+              let legacyMatches = defaults.dictionary(forKey: "BingeLog.Jellyfin.ManualMatches") as? [String: Int],
+              !legacyMatches.isEmpty,
+              let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server"),
+              var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return
+        }
+
+        components.scheme = components.scheme?.lowercased()
+        components.host = components.host?.lowercased()
+        components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.query = nil
+        components.fragment = nil
+        guard let serverIdentity = components.string else { return }
+
+        for (itemID, tmdbID) in legacyMatches {
+            let scopedKey = "\(serverIdentity)|\(itemID)"
+            if manualMatches[scopedKey] == nil {
+                manualMatches[scopedKey] = tmdbID
+            }
+        }
+        defaults.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
+        defaults.set(true, forKey: migrationKey)
+    }
+
     private func manualMatchKey(for item: JellyfinLibraryItem) -> String {
         let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "unknown-server"
         guard var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)) else {
@@ -325,6 +353,7 @@ struct JellyfinLibraryView: View {
             Text("\(differenceToConfirm?.item.name ?? "Titeln") flyttas till Sett klart. Ditt personliga betyg påverkas inte.")
         }
         .task {
+            migrateLegacyManualMatches()
             if items.isEmpty && SecureTokenStore.read(service: "BingeLog.Jellyfin.Token") != nil {
                 await loadLibrary()
             }
