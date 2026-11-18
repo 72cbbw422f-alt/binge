@@ -9,6 +9,7 @@ struct DiscoverView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showTokenSheet = false
+    @State private var persistenceError: String?
     private let service = TMDBService()
 
     private var hasToken: Bool {
@@ -95,6 +96,11 @@ struct DiscoverView: View {
         }
         .sheet(isPresented: $showTokenSheet) {
             TMDBTokenSheet()
+        }
+        .alert("Kunde inte spara titeln", isPresented: Binding(get: { persistenceError != nil }, set: { if !$0 { persistenceError = nil } })) {
+            Button("OK", role: .cancel) { persistenceError = nil }
+        } message: {
+            Text(persistenceError ?? "Försök igen.")
         }
     }
 
@@ -237,6 +243,13 @@ struct DiscoverView: View {
             status: .planned
         )
         modelContext.insert(entry)
+        do {
+            try modelContext.save()
+            persistenceError = nil
+        } catch {
+            modelContext.rollback()
+            persistenceError = error.localizedDescription
+        }
     }
 
     private var posterPlaceholder: some View {
