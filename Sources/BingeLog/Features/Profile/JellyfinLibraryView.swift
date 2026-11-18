@@ -6,7 +6,6 @@ struct JellyfinLibraryView: View {
     @Query private var savedEntries: [BingeEntry]
     @State private var items: [JellyfinLibraryItem] = []
     @State private var isLoading = false
-    @State private var isImporting = false
     @State private var errorMessage: String?
     @State private var statusMessage: String?
     @State private var itemToMatch: JellyfinLibraryItem?
@@ -68,7 +67,7 @@ struct JellyfinLibraryView: View {
                     .font(.headline).foregroundStyle(.black).padding(15)
                     .background(BingeTheme.accent, in: RoundedRectangle(cornerRadius: 14))
                 }
-                .disabled(isLoading || isImporting)
+                .disabled(isLoading)
 
                 if !items.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -87,15 +86,13 @@ struct JellyfinLibraryView: View {
                             importNewItems()
                         } label: {
                             HStack {
-                                if isImporting { ProgressView().tint(.black) }
-                                Text(isImporting ? "Importerar…" : "Importera \(importableItems.count) nya titlar")
+                                                Text("Importera \(importableItems.count) nya titlar")
                                 Spacer()
                                 Image(systemName: "square.and.arrow.down")
                             }
                             .font(.headline).foregroundStyle(.black).padding(15)
                             .background(BingeTheme.accent, in: RoundedRectangle(cornerRadius: 14))
                         }
-                        .disabled(isImporting)
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
@@ -179,8 +176,9 @@ struct JellyfinLibraryView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $itemToMatch) { item in
             JellyfinTMDBMatchSheet(item: item) { match in
-                importMatchedItem(item, match: match)
-                itemToMatch = nil
+                if importMatchedItem(item, match: match) {
+                    itemToMatch = nil
+                }
             }
         }
         .task {
@@ -223,13 +221,13 @@ struct JellyfinLibraryView: View {
     }
 
     @MainActor
-    private func importMatchedItem(_ jellyfinItem: JellyfinLibraryItem, match: TMDBMediaItem) {
+    private func importMatchedItem(_ jellyfinItem: JellyfinLibraryItem, match: TMDBMediaItem) -> Bool {
         guard let kind = jellyfinItem.mediaKind,
               let mediaType = match.mediaType,
               (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv),
               !savedEntries.contains(where: { $0.tmdbID == match.id && $0.mediaKind == kind }) else {
             errorMessage = "Titeln kunde inte matchas eller finns redan i BingeLog."
-            return
+            return false
         }
         let entry = BingeEntry(
             tmdbID: match.id,
@@ -248,8 +246,11 @@ struct JellyfinLibraryView: View {
             try modelContext.save()
             statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
             errorMessage = nil
+            return true
         } catch {
+            modelContext.delete(entry)
             errorMessage = "Matchningen kunde inte sparas: \(error.localizedDescription)"
+            return false
         }
     }
 
