@@ -31,6 +31,26 @@ struct CollectionView: View {
         }
     }
 
+    private var sortTitle: String {
+        switch sortOrder {
+        case "title": "Titel A–Ö"
+        case "rating": "Betyg"
+        default: "Senast tillagda"
+        }
+    }
+
+    private func sortOption(_ title: String, value: String) -> some View {
+        Button {
+            sortOrder = value
+        } label: {
+            if sortOrder == value {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+
     private var visibleSections: [BingeWatchStatus] {
         if let selectedStatus { return [selectedStatus] }
         return [.watching, .planned, .completed, .onHold, .dropped]
@@ -67,11 +87,11 @@ struct CollectionView: View {
                     kindChip("Serier", kind: .tv)
                     Spacer(minLength: 0)
                     Menu {
-                        Button("Senast tillagda") { sortOrder = "recent" }
-                        Button("Titel A–Ö") { sortOrder = "title" }
-                        Button("Högst personligt betyg") { sortOrder = "rating" }
+                        sortOption("Senast tillagda", value: "recent")
+                        sortOption("Titel A–Ö", value: "title")
+                        sortOption("Högst personligt betyg", value: "rating")
                     } label: {
-                        Label("Sortera", systemImage: "arrow.up.arrow.down")
+                        Label(sortTitle, systemImage: "arrow.up.arrow.down")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(BingeTheme.accent)
                     }
