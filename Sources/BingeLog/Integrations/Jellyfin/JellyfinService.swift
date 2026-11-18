@@ -48,7 +48,7 @@ struct JellyfinUser: Decodable {
 
 struct JellyfinLibraryResponse: Decodable {
     let items: [JellyfinLibraryItem]
-    let totalRecordCount: Int
+    let totalRecordCount: Int?
     enum CodingKeys: String, CodingKey {
         case items = "Items"
         case totalRecordCount = "TotalRecordCount"
@@ -109,7 +109,7 @@ struct JellyfinService {
         guard let baseURL = normalizedServerURL(serverAddress) else {
             throw JellyfinError.invalidServerAddress
         }
-        let url = baseURL.appendingPathComponent("Users/AuthenticateByName")
+        let url = baseURL.appendingPathComponent("Users").appendingPathComponent("AuthenticateByName")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 20
@@ -142,9 +142,7 @@ struct JellyfinService {
         let pageSize = 200
         var startIndex = 0
         var allItems: [JellyfinLibraryItem] = []
-        var expectedTotal = Int.max
-
-        while startIndex < expectedTotal {
+        while true {
             var components = URLComponents(
                 url: baseURL.appendingPathComponent("Users").appendingPathComponent(userID).appendingPathComponent("Items"),
                 resolvingAgainstBaseURL: false
@@ -175,10 +173,15 @@ struct JellyfinService {
                 throw JellyfinError.invalidResponse
             }
 
-            expectedTotal = page.totalRecordCount
             allItems.append(contentsOf: page.items)
             if page.items.isEmpty { break }
             startIndex += page.items.count
+
+            if let total = page.totalRecordCount {
+                if startIndex >= total { break }
+            } else if page.items.count < pageSize {
+                break
+            }
         }
 
         return allItems
@@ -191,7 +194,7 @@ struct JellyfinService {
             clearCredentials()
             return
         }
-        var request = URLRequest(url: baseURL.appendingPathComponent("Sessions/Logout"))
+        var request = URLRequest(url: baseURL.appendingPathComponent("Sessions").appendingPathComponent("Logout"))
         request.httpMethod = "POST"
         request.timeoutInterval = 10
         request.setValue(authorizationHeader(token: token), forHTTPHeaderField: "Authorization")
@@ -200,10 +203,22 @@ struct JellyfinService {
     }
 
     static func saveConnection(server: String, username: String, userID: String, token: String) -> Bool {
-        SecureTokenStore.save(server, service: "BingeLog.Jellyfin.Server")
-            && SecureTokenStore.save(username, service: "BingeLog.Jellyfin.Username")
-            && SecureTokenStore.save(userID, service: "BingeLog.Jellyfin.UserID")
-            && SecureTokenStore.save(token, service: "BingeLog.Jellyfin.Token")
+        let credentials: [(String, String)] = [
+            (server, "BingeLog.Jellyfin.Server"),
+            (username, "BingeLog.Jellyfin.Username"),
+            (userID, "BingeLog.Jellyfin.UserID"),
+            (token, "BingeLog.Jellyfin.Token")
+        ]
+
+        for (value, service) in credentials {
+            guard SecureTokenStore.save(value, service: service) else {
+                for (_, storedService) in credentials {
+                    SecureTokenStore.delete(service: storedService)
+                }
+                return false
+            }
+        }
+        return true
     }
 
     private func clearCredentials() {
