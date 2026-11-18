@@ -49,15 +49,18 @@ struct JellyfinLibraryView: View {
     // the connected server so switching servers cannot silently reuse a match.
     private func manualMatchKey(for item: JellyfinLibraryItem) -> String {
         let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "unknown-server"
-        var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines))
-        if let scheme = components?.scheme { components?.scheme = scheme.lowercased() }
-        if let host = components?.host { components?.host = host.lowercased() }
-        if let path = components?.path {
-            components?.path = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return "\(rawServer)|\(item.id)"
         }
-        components?.query = nil
-        components?.fragment = nil
-        let serverIdentity = components?.string ?? rawServer
+        let normalizedScheme = components.scheme?.lowercased()
+        let normalizedHost = components.host?.lowercased()
+        let normalizedPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.scheme = normalizedScheme
+        components.host = normalizedHost
+        components.path = normalizedPath
+        components.query = nil
+        components.fragment = nil
+        let serverIdentity = components.string
         return "\(serverIdentity)|\(item.id)"
     }
 
