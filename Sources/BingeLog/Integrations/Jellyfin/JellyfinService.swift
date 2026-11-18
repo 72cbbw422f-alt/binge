@@ -55,6 +55,18 @@ struct JellyfinLibraryResponse: Decodable {
     }
 }
 
+struct JellyfinUserData: Decodable {
+    let played: Bool?
+    let playCount: Int?
+    let lastPlayedDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case played = "Played"
+        case playCount = "PlayCount"
+        case lastPlayedDate = "LastPlayedDate"
+    }
+}
+
 struct JellyfinLibraryItem: Decodable, Identifiable {
     let id: String
     let name: String
@@ -62,6 +74,7 @@ struct JellyfinLibraryItem: Decodable, Identifiable {
     let productionYear: Int?
     let overview: String?
     let providerIds: [String: String]?
+    let userData: JellyfinUserData?
 
     enum CodingKeys: String, CodingKey {
         case id = "Id"
@@ -70,6 +83,7 @@ struct JellyfinLibraryItem: Decodable, Identifiable {
         case productionYear = "ProductionYear"
         case overview = "Overview"
         case providerIds = "ProviderIds"
+        case userData = "UserData"
     }
 
     var tmdbID: Int? {
@@ -151,6 +165,7 @@ struct JellyfinService {
                 URLQueryItem(name: "Recursive", value: "true"),
                 URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
                 URLQueryItem(name: "Fields", value: "ProviderIds,Overview,ProductionYear"),
+                URLQueryItem(name: "EnableUserData", value: "true"),
                 URLQueryItem(name: "SortBy", value: "SortName"),
                 URLQueryItem(name: "SortOrder", value: "Ascending"),
                 URLQueryItem(name: "StartIndex", value: String(startIndex)),
