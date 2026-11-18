@@ -22,3 +22,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: se.bingelog.app
         INFOPLIST_KEY_UIUserInterfaceStyle: Dark
         ENABLE_PREVIEWS: YES
+schemes:
+  BingeLog:
+    build:
+      targets:
+        BingeLog: all
+    test:
+      targets:
+        - BingeLogTests
