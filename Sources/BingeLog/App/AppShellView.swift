@@ -256,19 +256,40 @@ private struct HomeView: View {
 private struct WatchHistoryView: View {
     @Query(sort: \BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
 
+    private var groupedEvents: [(date: Date, events: [BingeWatchEvent])] {
+        let groups = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.occurredAt) }
+        return groups.keys.sorted(by: >).map { date in
+            (date: date, events: groups[date, default: []])
+        }
+    }
+
+    private func sectionTitle(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) { return "Idag" }
+        if Calendar.current.isDateInYesterday(date) { return "Igår" }
+        return date.formatted(date: .complete, time: .omitted)
+    }
+
     var body: some View {
         List {
-            ForEach(events) { event in
-                HStack(spacing: 12) {
-                    Image(systemName: event.eventType == .episodeWatched ? "checkmark.circle.fill" : event.eventType == .episodeUnwatched ? "arrow.uturn.backward.circle" : "arrow.left.arrow.right.circle")
-                        .foregroundStyle(BingeTheme.accent)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(event.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                        Text(event.summary).font(.caption).foregroundStyle(BingeTheme.secondaryText)
-                        Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+            ForEach(groupedEvents, id: \.date) { group in
+                Section {
+                    ForEach(group.events) { event in
+                        HStack(spacing: 12) {
+                            Image(systemName: event.eventType == .episodeWatched ? "checkmark.circle.fill" : event.eventType == .episodeUnwatched ? "arrow.uturn.backward.circle" : "arrow.left.arrow.right.circle")
+                                .foregroundStyle(BingeTheme.accent)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(event.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                                Text(event.summary).font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                Text(event.occurredAt.formatted(date: .omitted, time: .shortened)).font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+                            }
+                        }
+                        .listRowBackground(BingeTheme.surface)
                     }
+                } header: {
+                    Text(sectionTitle(for: group.date))
+                        .foregroundStyle(BingeTheme.accent)
                 }
-                .listRowBackground(BingeTheme.surface)
             }
             if events.isEmpty {
                 Text("Din tittarhistorik visas här när du börjar använda BingeLog.")
@@ -276,12 +297,14 @@ private struct WatchHistoryView: View {
                     .listRowBackground(BingeTheme.surface)
             }
         }
+        .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(BingeTheme.background)
         .navigationTitle("Aktivitet")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
 private struct HomeSectionCard: View {
     let title: String
     let subtitle: String
