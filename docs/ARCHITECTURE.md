@@ -9,7 +9,7 @@ BingeLog owns the user's personal data. External services enrich the experience;
 - `Sources/BingeLog/App/` — app entry point, tab shell, and home dashboard
 - `Sources/BingeLog/Design/` — shared colors, spacing, typography, and visual components
 - `Sources/BingeLog/Models/` — SwiftData models for saved media, episode progress, and activity events
-- `Sources/BingeLog/Features/` — Discover, Collection, Detail, Import, and profile screens
+- `Sources/BingeLog/Features/` — Discover, Collection, Detail, Calendar, Import, and profile screens
 - `Sources/BingeLog/Integrations/TMDB/` — TMDB API models and metadata service
 - `Sources/BingeLog/Integrations/MDBList/` — optional MDBList list import
 - `Sources/BingeLog/Integrations/Security/` — Keychain-backed token storage
@@ -20,13 +20,14 @@ BingeLog owns the user's personal data. External services enrich the experience;
 - `BingeEpisodeProgress` — watched timestamp for a series episode, identified by TMDB series ID, season, and episode
 - `BingeWatchEvent` — chronological local activity for status changes and episode watch/unwatch actions
 
-The home screen derives its watching/planned counts, continue-watching shelf, and recent activity from these local records. Series detail derives overall and per-season watched counts from `BingeEpisodeProgress` and the season episode totals supplied by TMDB.
+The home screen derives watching/planned/completed counts, personal rating insights, monthly activity totals, active days, a continue-watching shelf, and recent activity from these local records. The full activity screen groups events by calendar day. Series detail derives overall and per-season watched counts from `BingeEpisodeProgress` and the season episode totals supplied by TMDB.
 
 ## Integrations and data ownership
 
 - TMDB supplies descriptive metadata, artwork, credits, trailers, and season/episode catalog data. It does not own personal tracking state.
 - MDBList is an optional source for importing the user's own lists. Import adds missing records as planned; it must not overwrite existing statuses, personal ratings, or watch history.
 - Jellyfin is a possible future integration and is not currently implemented.
+- The release calendar combines upcoming movie releases with relevant upcoming TV episodes for titles in the user's local collection. It caches results, supports manual refresh, and surfaces partial provider failures.
 
 ## Data ownership and conflict rules
 
