@@ -13,7 +13,7 @@ struct JellyfinLibraryView: View {
     @State private var searchText = ""
     @State private var libraryFilter: JellyfinLibraryFilter = .all
     @State private var isImportConfirmationPresented = false
-    @State private var manualMatches: [String: Int] = UserDefaults.standard.dictionary(forKey: "BingeLog.Jellyfin.ManualMatches") as? [String: Int] ?? [:]
+    @State private var manualMatches: [String: Int] = UserDefaults.standard.dictionary(forKey: "BingeLog.Jellyfin.ManualMatchesByServer") as? [String: Int] ?? [:]
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -42,7 +42,21 @@ struct JellyfinLibraryView: View {
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
 
     private func resolvedTMDBID(for item: JellyfinLibraryItem) -> Int? {
-        item.tmdbID ?? manualMatches[item.id]
+        item.tmdbID ?? manualMatches[manualMatchKey(for: item)]
+    }
+
+    // Jellyfin item IDs are only unique within a server. Scope manual matches to
+    // the connected server so switching servers cannot silently reuse a match.
+    private func manualMatchKey(for item: JellyfinLibraryItem) -> String {
+        let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "unknown-server"
+        var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines))
+        components?.scheme = components?.scheme?.lowercased()
+        components?.host = components?.host?.lowercased()
+        components?.path = components?.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? ""
+        components?.query = nil
+        components?.fragment = nil
+        let serverIdentity = components?.string ?? rawServer
+        return "\(serverIdentity)|\(item.id)"
     }
 
     private var filteredItems: [JellyfinLibraryItem] {
@@ -427,8 +441,8 @@ struct JellyfinLibraryView: View {
         do {
             try modelContext.save()
             if jellyfinItem.tmdbID == nil {
-                manualMatches[jellyfinItem.id] = match.id
-                UserDefaults.standard.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatches")
+                manualMatches[manualMatchKey(for: jellyfinItem)] = match.id
+                UserDefaults.standard.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
             }
             statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
             errorMessage = nil
