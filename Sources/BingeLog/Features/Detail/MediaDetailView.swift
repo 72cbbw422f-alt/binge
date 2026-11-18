@@ -19,6 +19,7 @@ struct MediaDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var selectedRating = 0.0
+    @State private var persistenceError: String?
 
     private let service = TMDBService()
 
@@ -94,6 +95,11 @@ struct MediaDetailView: View {
         .task(id: id) { await loadDetails() }
         .onAppear { selectedRating = savedEntry?.userRating ?? 0 }
         .onChange(of: savedEntry?.userRating) { _, value in selectedRating = value ?? 0 }
+        .alert("Kunde inte spara ändringen", isPresented: Binding(get: { persistenceError != nil }, set: { if !$0 { persistenceError = nil } })) {
+            Button("OK", role: .cancel) { persistenceError = nil }
+        } message: {
+            Text(persistenceError ?? "Försök igen.")
+        }
     }
 
     private var hero: some View {
@@ -175,6 +181,7 @@ struct MediaDetailView: View {
                         status: .planned
                     )
                     modelContext.insert(entry)
+                    saveChanges()
                 } label: {
                     Label("Lägg till i Vill se", systemImage: "bookmark.fill")
                         .font(.headline)
@@ -201,11 +208,12 @@ struct MediaDetailView: View {
                         .tint(Color(hex: 0xF5B94C))
                         .onChange(of: selectedRating) { _, value in
                             savedEntry?.userRating = value == 0 ? nil : value
+                            saveChanges()
                         }
                     HStack {
                         Text("Tryck och dra för att sätta betyg")
                         Spacer()
-                        Button("Nollställ") { selectedRating = 0; savedEntry?.userRating = nil }
+                        Button("Nollställ") { selectedRating = 0; savedEntry?.userRating = nil; saveChanges() }
                     }
                     .font(.caption2)
                     .foregroundStyle(BingeTheme.secondaryText)
@@ -372,6 +380,7 @@ struct MediaDetailView: View {
                 detail: "S\(episode.seasonNumber) · A\(episode.episodeNumber) – \(episode.name)"
             ))
         }
+        saveChanges()
     }
 
     private var castSection: some View {
@@ -488,6 +497,17 @@ struct MediaDetailView: View {
             if entry.startedAt == nil { entry.startedAt = entry.addedAt }
         case .planned, .onHold, .dropped:
             entry.completedAt = nil
+        }
+        saveChanges()
+    }
+
+    private func saveChanges() {
+        do {
+            try modelContext.save()
+            persistenceError = nil
+        } catch {
+            modelContext.rollback()
+            persistenceError = error.localizedDescription
         }
     }
 
