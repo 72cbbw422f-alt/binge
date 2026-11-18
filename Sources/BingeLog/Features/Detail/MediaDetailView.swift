@@ -30,9 +30,10 @@ struct MediaDetailView: View {
 
     private var retainedWatchedEpisodeCount: Int {
         guard mediaKind == .tv else { return 0 }
-        return episodeProgress.filter {
-            $0.seriesTMDBID == id && $0.isWatched
-        }.count
+        return Set(episodeProgress.compactMap { item in
+            guard item.seriesTMDBID == id, item.isWatched else { return nil }
+            return "\(item.seasonNumber)-\(item.episodeNumber)"
+        }).count
     }
 
     private var title: String { details?.displayTitle ?? fallbackTitle }
@@ -259,9 +260,10 @@ struct MediaDetailView: View {
     private var seriesProgressSection: some View {
         let seasons = details?.seasons?.filter { $0.seasonNumber > 0 } ?? []
         let totalEpisodes = seasons.reduce(0) { $0 + $1.episodeCount }
-        let watchedEpisodes = episodeProgress.filter {
-            $0.seriesTMDBID == id && $0.isWatched && $0.seasonNumber > 0
-        }.count
+        let watchedEpisodes = Set(episodeProgress.compactMap { item in
+            guard item.seriesTMDBID == id, item.isWatched, item.seasonNumber > 0 else { return nil }
+            return "\(item.seasonNumber)-\(item.episodeNumber)"
+        }).count
         let progress = totalEpisodes > 0 ? Double(watchedEpisodes) / Double(totalEpisodes) : 0
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -296,7 +298,10 @@ struct MediaDetailView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(season.name).font(.headline).foregroundStyle(.white)
-                                    let watched = episodeProgress.filter { $0.seriesTMDBID == id && $0.seasonNumber == season.seasonNumber && $0.isWatched }.count
+                                    let watched = Set(episodeProgress.compactMap { item in
+                                        guard item.seriesTMDBID == id, item.seasonNumber == season.seasonNumber, item.isWatched else { return nil }
+                                        return item.episodeNumber
+                                    }).count
                                     Text("\(watched) av \(season.episodeCount) avsnitt sedda").font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
                                 Spacer()
@@ -322,9 +327,10 @@ struct MediaDetailView: View {
     }
 
     private func episodeRow(_ episode: TMDBEpisode) -> some View {
-        let progress = episodeProgress.first {
+        let matchingProgress = episodeProgress.filter {
             $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
         }
+        let isWatched = matchingProgress.contains { $0.isWatched }
         let progressKey = "\(id)-\(episode.seasonNumber)-\(episode.episodeNumber)"
         let isUpdating = episodeUpdatesInFlight.contains(progressKey)
         return HStack(spacing: 10) {
@@ -346,13 +352,13 @@ struct MediaDetailView: View {
             Button {
                 toggleEpisode(episode)
             } label: {
-                Image(systemName: progress?.isWatched == true ? "checkmark.circle.fill" : "circle")
+                Image(systemName: isWatched ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(progress?.isWatched == true ? BingeTheme.accent : BingeTheme.secondaryText)
+                    .foregroundStyle(isWatched ? BingeTheme.accent : BingeTheme.secondaryText)
             }
             .buttonStyle(.plain)
             .disabled(isUpdating)
-            .accessibilityLabel(progress?.isWatched == true ? "Markera som ej sett" : "Markera som sett")
+            .accessibilityLabel(isWatched ? "Markera som ej sett" : "Markera som sett")
         }
         .padding(9)
         .background(BingeTheme.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
@@ -381,12 +387,15 @@ struct MediaDetailView: View {
         defer { episodeUpdatesInFlight.remove(progressKey) }
 
         // Resolve the current model at tap time instead of relying on a potentially stale row value.
-        let progress = episodeProgress.first {
+        let matchingProgress = episodeProgress.filter {
             $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
         }
-        if let progress {
-            let wasWatched = progress.isWatched
-            progress.watchedAt = wasWatched ? nil : .now
+        if !matchingProgress.isEmpty {
+            let wasWatched = matchingProgress.contains { $0.isWatched }
+            // Keep legacy duplicate rows consistent without deleting any stored progress records.
+            for item in matchingProgress {
+                item.watchedAt = wasWatched ? nil : .now
+            }
             modelContext.insert(BingeWatchEvent(
                 type: wasWatched ? .episodeUnwatched : .episodeWatched,
                 tmdbID: id,
