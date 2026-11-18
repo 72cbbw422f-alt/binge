@@ -164,7 +164,13 @@ private struct HomeView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    sectionHeading("Senaste aktivitet", subtitle: "Din personliga tittarhistorik")
+                    HStack {
+                        sectionHeading("Senaste aktivitet", subtitle: "Din personliga tittarhistorik")
+                        Spacer()
+                        NavigationLink("Visa alla") { WatchHistoryView() }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(BingeTheme.accent)
+                    }
                     if events.isEmpty {
                         HomeSectionCard(
                             title: "Historiken börjar här",
@@ -247,6 +253,35 @@ private struct HomeView: View {
     }
 }
 
+private struct WatchHistoryView: View {
+    @Query(sort: \\BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
+
+    var body: some View {
+        List {
+            ForEach(events) { event in
+                HStack(spacing: 12) {
+                    Image(systemName: event.eventType == .episodeWatched ? "checkmark.circle.fill" : event.eventType == .episodeUnwatched ? "arrow.uturn.backward.circle" : "arrow.left.arrow.right.circle")
+                        .foregroundStyle(BingeTheme.accent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(event.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                        Text(event.summary).font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                        Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+                    }
+                }
+                .listRowBackground(BingeTheme.surface)
+            }
+            if events.isEmpty {
+                Text("Din tittarhistorik visas här när du börjar använda BingeLog.")
+                    .foregroundStyle(BingeTheme.secondaryText)
+                    .listRowBackground(BingeTheme.surface)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(BingeTheme.background)
+        .navigationTitle("Aktivitet")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 private struct HomeSectionCard: View {
     let title: String
     let subtitle: String
