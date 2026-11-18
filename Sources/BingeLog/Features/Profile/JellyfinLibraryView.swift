@@ -30,9 +30,11 @@ struct JellyfinLibraryView: View {
         }
     }
 
-    private var withoutTMDB: Int {
-        supportedItems.filter { $0.tmdbID == nil }.count
+    private var itemsWithoutTMDB: [JellyfinLibraryItem] {
+        supportedItems.filter { $0.tmdbID == nil }
     }
+
+    private var withoutTMDB: Int { itemsWithoutTMDB.count }
 
     var body: some View {
         ScrollView {
@@ -99,7 +101,8 @@ struct JellyfinLibraryView: View {
                         Text("FILMER OCH SERIER")
                             .font(.caption.weight(.bold)).tracking(1.2)
                             .foregroundStyle(BingeTheme.secondaryText)
-                        ForEach(supportedItems) { item in
+                        LazyVStack(spacing: 10) {
+                            ForEach(supportedItems) { item in
                             HStack(spacing: 10) {
                                 Image(systemName: item.mediaKind == .movie ? "film" : "tv")
                                     .foregroundStyle(BingeTheme.accent)
@@ -121,6 +124,32 @@ struct JellyfinLibraryView: View {
                             }
                             .padding(11)
                             .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+
+                    if !itemsWithoutTMDB.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("BEHÖVER MATCHAS")
+                                .font(.caption.weight(.bold)).tracking(1.2)
+                                .foregroundStyle(BingeTheme.secondaryText)
+                            Text("De här titlarna saknar TMDB-ID i Jellyfin. De importeras inte automatiskt eftersom det finns risk att fel film eller serie kopplas.")
+                                .font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                            LazyVStack(spacing: 8) {
+                                ForEach(itemsWithoutTMDB) { item in
+                                    HStack(spacing: 10) {
+                                        Image(systemName: item.mediaKind == .movie ? "film" : "tv")
+                                            .foregroundStyle(BingeTheme.secondaryText).frame(width: 30)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(item.name).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                                            Text(item.mediaKind?.title ?? "Okänd typ").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                        }
+                                        Spacer()
+                                        Text("Saknar ID").font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+                                    }
+                                    .padding(11)
+                                    .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
                         }
                     }
                 } else if !isLoading {
