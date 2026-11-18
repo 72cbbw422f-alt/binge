@@ -48,6 +48,7 @@ Aktuell utveckling och byggresultat finns under [GitHub Actions](https://github.
 
 - [Arkitektur](docs/ARCHITECTURE.md)
 - [Integrationer](docs/INTEGRATIONS.md)
+- [Datans livscykel](docs/DATA_LIFECYCLE.md)
 - [TMDB-konfiguration](docs/TMDB_SETUP.md)
 
 ## TMDB-attribution
