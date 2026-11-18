@@ -256,8 +256,11 @@ struct JellyfinLibraryView: View {
 
     @MainActor
     private func importNewItems() {
-        var added = 0
-        for item in importableItems {
+        let candidates = importableItems
+        guard !candidates.isEmpty else { return }
+
+        var insertedEntries: [BingeEntry] = []
+        for item in candidates {
             guard let id = item.tmdbID, let kind = item.mediaKind else { continue }
             let date = item.productionYear.map { "\($0)-01-01" }
             let entry = BingeEntry(
@@ -269,16 +272,22 @@ struct JellyfinLibraryView: View {
                 status: .planned
             )
             modelContext.insert(entry)
-            added += 1
+            insertedEntries.append(entry)
         }
+
         do {
             try modelContext.save()
-            statusMessage = "Klart! \(added) nya titlar importerades som Vill se. Befintliga betyg och tittarhistorik ändrades inte."
+            statusMessage = "Klart! \(insertedEntries.count) nya titlar importerades som Vill se. Befintliga betyg och tittarhistorik ändrades inte."
+            errorMessage = nil
         } catch {
-            errorMessage = "Importen kunde inte sparas: \(error.localizedDescription)"
+            for entry in insertedEntries {
+                modelContext.delete(entry)
+            }
+            modelContext.rollback()
+            errorMessage = "Importen misslyckades och har återställts. Inga nya titlar har lagts till. \(error.localizedDescription)"
+            statusMessage = nil
         }
-    }
-}
+    }}
 
 
 private struct JellyfinTMDBMatchSheet: View {
