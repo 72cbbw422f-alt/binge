@@ -45,6 +45,43 @@ struct JellyfinUser: Decodable {
     }
 }
 
+
+struct JellyfinLibraryResponse: Decodable {
+    let items: [JellyfinLibraryItem]
+    enum CodingKeys: String, CodingKey { case items = "Items" }
+}
+
+struct JellyfinLibraryItem: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let type: String
+    let productionYear: Int?
+    let overview: String?
+    let providerIds: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id = "Id"
+        case name = "Name"
+        case type = "Type"
+        case productionYear = "ProductionYear"
+        case overview = "Overview"
+        case providerIds = "ProviderIds"
+    }
+
+    var tmdbID: Int? {
+        guard let raw = providerIds?["Tmdb"] else { return nil }
+        return Int(raw)
+    }
+
+    var mediaKind: BingeMediaKind? {
+        switch type {
+        case "Movie": return .movie
+        case "Series": return .tv
+        default: return nil
+        }
+    }
+}
+
 struct JellyfinService {
     private let session: URLSession
     private static let clientName = "BingeLog"
@@ -89,6 +126,44 @@ struct JellyfinService {
         }
     }
 
+
+    func libraryItems() async throws -> [JellyfinLibraryItem] {
+        guard let server = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server"),
+              let token = SecureTokenStore.read(service: "BingeLog.Jellyfin.Token"),
+              let userID = SecureTokenStore.read(service: "BingeLog.Jellyfin.UserID"),
+              let baseURL = normalizedServerURL(server) else {
+            throw JellyfinError.missingConnection
+        }
+
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("Users/" + userID + "/Items"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "Recursive", value: "true"),
+            URLQueryItem(name: "IncludeItemTypes", value: "Movie,Series"),
+            URLQueryItem(name: "Fields", value: "ProviderIds,Overview,ProductionYear"),
+            URLQueryItem(name: "SortBy", value: "SortName"),
+            URLQueryItem(name: "SortOrder", value: "Ascending"),
+            URLQueryItem(name: "Limit", value: "1000")
+        ]
+        guard let url = components?.url else { throw JellyfinError.invalidResponse }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue(authorizationHeader(token: token), forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw JellyfinError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw JellyfinError.httpStatus(http.statusCode) }
+        do {
+            return try JSONDecoder().decode(JellyfinLibraryResponse.self, from: data).items
+        } catch {
+            throw JellyfinError.invalidResponse
+        }
+    }
+
     func disconnect() async {
         guard let server = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server"),
               let token = SecureTokenStore.read(service: "BingeLog.Jellyfin.Token"),
@@ -104,15 +179,17 @@ struct JellyfinService {
         clearCredentials()
     }
 
-    static func saveConnection(server: String, username: String, token: String) -> Bool {
+    static func saveConnection(server: String, username: String, userID: String, token: String) -> Bool {
         SecureTokenStore.save(server, service: "BingeLog.Jellyfin.Server")
             && SecureTokenStore.save(username, service: "BingeLog.Jellyfin.Username")
+            && SecureTokenStore.save(userID, service: "BingeLog.Jellyfin.UserID")
             && SecureTokenStore.save(token, service: "BingeLog.Jellyfin.Token")
     }
 
     private func clearCredentials() {
         SecureTokenStore.delete(service: "BingeLog.Jellyfin.Server")
         SecureTokenStore.delete(service: "BingeLog.Jellyfin.Username")
+        SecureTokenStore.delete(service: "BingeLog.Jellyfin.UserID")
         SecureTokenStore.delete(service: "BingeLog.Jellyfin.Token")
     }
 
