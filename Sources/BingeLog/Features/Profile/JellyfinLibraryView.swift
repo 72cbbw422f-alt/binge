@@ -9,6 +9,7 @@ struct JellyfinLibraryView: View {
     @State private var errorMessage: String?
     @State private var statusMessage: String?
     @State private var itemToMatch: JellyfinLibraryItem?
+    @State private var differenceToConfirm: JellyfinWatchStateDifference?
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -165,6 +166,16 @@ struct JellyfinLibraryView: View {
                                     }
                                     .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
+                                if difference.item.userData?.played == true {
+                                    Button {
+                                        differenceToConfirm = difference
+                                    } label: {
+                                        Label("Markera som sett i BingeLog", systemImage: "checkmark.circle")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(BingeTheme.accent)
+                                    }
+                                    .padding(.top, 3)
+                                }
                                 .padding(11)
                                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                             }
@@ -226,6 +237,24 @@ struct JellyfinLibraryView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Markera som sedd i BingeLog?",
+            isPresented: Binding(
+                get: { differenceToConfirm != nil },
+                set: { if !$0 { differenceToConfirm = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Markera som sett") {
+                if let difference = differenceToConfirm {
+                    applyJellyfinWatchedState(difference)
+                }
+                differenceToConfirm = nil
+            }
+            Button("Avbryt", role: .cancel) { differenceToConfirm = nil }
+        } message: {
+            Text("\(differenceToConfirm?.item.name ?? "Titeln") flyttas till Sett klart. Ditt personliga betyg påverkas inte.")
+        }
         .task {
             if items.isEmpty && SecureTokenStore.read(service: "BingeLog.Jellyfin.Token") != nil {
                 await loadLibrary()
@@ -262,6 +291,42 @@ struct JellyfinLibraryView: View {
             statusMessage = "Hämtade \(supportedItems.count) filmer och serier från Jellyfin."
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func applyJellyfinWatchedState(_ difference: JellyfinWatchStateDifference) {
+        guard difference.item.userData?.played == true,
+              let kind = difference.item.mediaKind,
+              let id = difference.item.tmdbID,
+              let entry = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }),
+              entry.status != .completed else { return }
+
+        let previousStatus = entry.status
+        let previousCompletedAt = entry.completedAt
+        let previousUpdatedAt = entry.updatedAt
+        entry.status = .completed
+        entry.completedAt = .now
+        let event = BingeWatchEvent(
+            type: .statusChanged,
+            tmdbID: id,
+            mediaKind: kind,
+            title: entry.title,
+            detail: "Markerad som Sett klart via Jellyfin"
+        )
+        modelContext.insert(event)
+
+        do {
+            try modelContext.save()
+            statusMessage = "\(entry.title) markerades som Sett klart i BingeLog. Ditt betyg är oförändrat."
+            errorMessage = nil
+        } catch {
+            entry.statusRaw = previousStatus.rawValue
+            entry.completedAt = previousCompletedAt
+            entry.updatedAt = previousUpdatedAt
+            modelContext.delete(event)
+            modelContext.rollback()
+            errorMessage = "Statusen kunde inte sparas: \(error.localizedDescription)"
         }
     }
 
