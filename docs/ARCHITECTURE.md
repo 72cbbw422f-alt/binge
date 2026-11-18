@@ -23,7 +23,7 @@ The home screen derives watching/planned/completed counts, personal rating insig
 ## Integrations and data ownership
 - TMDB supplies descriptive metadata, artwork, credits, trailers, and season/episode catalog data. It does not own personal tracking state.
 - MDBList is an optional source for importing the user's own lists. Import adds missing records as planned; it must not overwrite existing statuses, personal ratings, or watch history.
-- Jellyfin connection is implemented as an opt-in account session. The app authenticates through Jellyfin's MediaBrowser API and stores the server address, account name, and access token in iOS Keychain. The password is not persisted. Disconnect ends the session on a best-effort basis and removes the locally stored connection credentials. Library synchronization and playback-state synchronization are not implemented yet.
+- Jellyfin is an opt-in integration. The app authenticates through Jellyfin's MediaBrowser API and stores the server address, account name, user ID, and access token in iOS Keychain; the password is never persisted. The library screen retrieves movies and series in paginated requests, matches items only by their TMDB provider ID, and lets the user import new matches as planned. Items without a TMDB ID are shown separately and are not auto-matched. Imports do not overwrite local ratings, statuses, or watch history. Disconnect ends the server session on a best-effort basis and removes locally stored connection credentials. Playback-state synchronization is not implemented.
 - The release calendar combines upcoming movie releases with relevant upcoming TV episodes for titles in the user's local collection. It caches results, supports manual refresh, and surfaces partial provider failures.
 
 ## Data ownership and conflict rules
@@ -46,7 +46,7 @@ The home screen derives watching/planned/completed counts, personal rating insig
 Native SwiftUI, iOS 17+, SwiftData persistence, and an XcodeGen project definition. GitHub Actions builds the app for the iOS Simulator with code signing disabled. A successful simulator build does not produce a distributable IPA. Keep service clients independent of views where practical so integrations can be tested and replaced without rewriting the UI.
 
 ## Planned, not yet implemented
-- Jellyfin library discovery and matching against TMDB IDs
+- Manual TMDB matching for Jellyfin items that do not expose a TMDB provider ID
 - Optional Jellyfin playback/watch-state synchronization with clear conflict rules
 - Cloud synchronization and multi-device sharing
 - Notifications and release reminders
