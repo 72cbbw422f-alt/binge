@@ -269,9 +269,18 @@ private struct HomeView: View {
 
 private struct WatchHistoryView: View {
     @Query(sort: \BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
+    @State private var selectedFilter = "all"
+
+    private var filteredEvents: [BingeWatchEvent] {
+        switch selectedFilter {
+        case "episodes": events.filter { $0.eventType == .episodeWatched || $0.eventType == .episodeUnwatched }
+        case "status": events.filter { $0.eventType == .statusChanged }
+        default: events
+        }
+    }
 
     private var groupedEvents: [(date: Date, events: [BingeWatchEvent])] {
-        let groups = Dictionary(grouping: events) { Calendar.current.startOfDay(for: $0.occurredAt) }
+        let groups = Dictionary(grouping: filteredEvents) { Calendar.current.startOfDay(for: $0.occurredAt) }
         return groups.keys.sorted(by: >).map { date in
             (date: date, events: groups[date, default: []])
         }
@@ -285,6 +294,16 @@ private struct WatchHistoryView: View {
 
     var body: some View {
         List {
+            Section {
+                Picker("Visa aktivitet", selection: $selectedFilter) {
+                    Text("Allt").tag("all")
+                    Text("Avsnitt").tag("episodes")
+                    Text("Status").tag("status")
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(BingeTheme.background)
+            }
+
             ForEach(groupedEvents, id: \.date) { group in
                 Section {
                     ForEach(group.events) { event in
@@ -305,8 +324,11 @@ private struct WatchHistoryView: View {
                         .foregroundStyle(BingeTheme.accent)
                 }
             }
-            if events.isEmpty {
-                Text("Din tittarhistorik visas här när du börjar använda BingeLog.")
+
+            if filteredEvents.isEmpty {
+                Text(events.isEmpty
+                    ? "Din tittarhistorik visas här när du börjar använda BingeLog."
+                    : "Det finns ingen aktivitet av den här typen ännu.")
                     .foregroundStyle(BingeTheme.secondaryText)
                     .listRowBackground(BingeTheme.surface)
             }
