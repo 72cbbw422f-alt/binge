@@ -9,6 +9,7 @@ struct JellyfinLibraryView: View {
     @State private var isImporting = false
     @State private var errorMessage: String?
     @State private var statusMessage: String?
+    @State private var itemToMatch: JellyfinLibraryItem?
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -145,7 +146,9 @@ struct JellyfinLibraryView: View {
                                             Text(item.mediaKind?.title ?? "Okänd typ").font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                         }
                                         Spacer()
-                                        Text("Saknar ID").font(.caption2).foregroundStyle(BingeTheme.secondaryText)
+                                        Button("Matcha") { itemToMatch = item }
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(BingeTheme.accent)
                                     }
                                     .padding(11)
                                     .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -174,6 +177,12 @@ struct JellyfinLibraryView: View {
         }
         .background(BingeTheme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(item: $itemToMatch) { item in
+            JellyfinTMDBMatchSheet(item: item) { match in
+                importMatchedItem(item, match: match)
+                itemToMatch = nil
+            }
+        }
         .task {
             if items.isEmpty && SecureTokenStore.read(service: "BingeLog.Jellyfin.Token") != nil {
                 await loadLibrary()
@@ -214,6 +223,37 @@ struct JellyfinLibraryView: View {
     }
 
     @MainActor
+    private func importMatchedItem(_ jellyfinItem: JellyfinLibraryItem, match: TMDBMediaItem) {
+        guard let kind = jellyfinItem.mediaKind,
+              let mediaType = match.mediaType,
+              (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv),
+              !savedEntries.contains(where: { $0.tmdbID == match.id && $0.mediaKind == kind }) else {
+            errorMessage = "Titeln kunde inte matchas eller finns redan i BingeLog."
+            return
+        }
+        let entry = BingeEntry(
+            tmdbID: match.id,
+            mediaKind: kind,
+            title: match.displayTitle,
+            originalTitle: match.originalTitle ?? match.originalName ?? "",
+            posterPath: match.posterPath,
+            backdropPath: match.backdropPath,
+            overview: match.overview ?? jellyfinItem.overview ?? "",
+            releaseDate: match.releaseDate ?? match.firstAirDate ?? jellyfinItem.productionYear.map { "\($0)-01-01" },
+            tmdbRating: match.voteAverage,
+            status: .planned
+        )
+        modelContext.insert(entry)
+        do {
+            try modelContext.save()
+            statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
+            errorMessage = nil
+        } catch {
+            errorMessage = "Matchningen kunde inte sparas: \(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
     private func importNewItems() {
         var added = 0
         for item in importableItems {
@@ -235,6 +275,96 @@ struct JellyfinLibraryView: View {
             statusMessage = "Klart! \(added) nya titlar importerades som Vill se. Befintliga betyg och tittarhistorik ändrades inte."
         } catch {
             errorMessage = "Importen kunde inte sparas: \(error.localizedDescription)"
+        }
+    }
+}
+
+
+private struct JellyfinTMDBMatchSheet: View {
+    let item: JellyfinLibraryItem
+    let onSelect: (TMDBMediaItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var results: [TMDBMediaItem] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    private let service = TMDBService()
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                Text("Välj rätt TMDB-titel för \(item.name). Kontrollera årtal och typ innan du matchar.")
+                    .font(.subheadline)
+                    .foregroundStyle(BingeTheme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                TextField("Sök titel", text: $query)
+                    .textFieldStyle(.roundedBorder)
+                if isLoading {
+                    ProgressView("Söker i TMDB…").tint(BingeTheme.accent)
+                }
+                if let errorMessage {
+                    Text(errorMessage).font(.footnote).foregroundStyle(.red)
+                }
+                List(results) { result in
+                    Button {
+                        onSelect(result)
+                    } label: {
+                        HStack(spacing: 12) {
+                            AsyncImage(url: result.posterURL) { phase in
+                                if let image = phase.image {
+                                    image.resizable().scaledToFill()
+                                } else {
+                                    RoundedRectangle(cornerRadius: 7).fill(BingeTheme.elevated)
+                                        .overlay(Image(systemName: "film").foregroundStyle(BingeTheme.secondaryText))
+                                }
+                            }
+                            .frame(width: 48, height: 70)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(result.displayTitle).font(.subheadline.weight(.semibold))
+                                Text([result.mediaType?.displayName, result.year].compactMap { $0 }.joined(separator: " · "))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                if let rating = result.rating {
+                                    Label(rating, systemImage: "star.fill").font(.caption2).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .listRowBackground(BingeTheme.surface)
+                }
+                .listStyle(.plain)
+            }
+            .padding()
+            .background(BingeTheme.background.ignoresSafeArea())
+            .navigationTitle("Matcha mot TMDB")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Avbryt") { dismiss() }
+                }
+            }
+            .task(id: query) {
+                let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard term.count >= 2 else {
+                    results = []
+                    return
+                }
+                do {
+                    try await Task.sleep(for: .milliseconds(350))
+                    isLoading = true
+                    defer { isLoading = false }
+                    let response = try await service.searchMulti(query: term)
+                    try Task.checkCancellation()
+                    let expected = item.mediaKind == .movie ? TMDBMediaType.movie : TMDBMediaType.tv
+                    results = response.results.filter { $0.mediaType == expected }
+                    errorMessage = nil
+                } catch is CancellationError {
+                    return
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            .onAppear { query = item.name }
         }
     }
 }
