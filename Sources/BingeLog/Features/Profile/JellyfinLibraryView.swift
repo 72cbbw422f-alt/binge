@@ -13,6 +13,7 @@ struct JellyfinLibraryView: View {
     @State private var searchText = ""
     @State private var libraryFilter: JellyfinLibraryFilter = .all
     @State private var isImportConfirmationPresented = false
+    @State private var manualMatches: [String: Int] = UserDefaults.standard.dictionary(forKey: "BingeLog.Jellyfin.ManualMatches") as? [String: Int] ?? [:]
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -21,7 +22,7 @@ struct JellyfinLibraryView: View {
 
     private var matchedItems: [JellyfinLibraryItem] {
         supportedItems.filter { item in
-            guard let id = item.tmdbID, let kind = item.mediaKind else { return false }
+            guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
             return savedEntries.contains { $0.tmdbID == id && $0.mediaKind == kind }
         }
     }
@@ -29,16 +30,20 @@ struct JellyfinLibraryView: View {
     private var importableItems: [JellyfinLibraryItem] {
         var known = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
         return supportedItems.filter { item in
-            guard let id = item.tmdbID, let kind = item.mediaKind else { return false }
+            guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
             return known.insert("\(kind.rawValue)-\(id)").inserted
         }
     }
 
     private var itemsWithoutTMDB: [JellyfinLibraryItem] {
-        supportedItems.filter { $0.tmdbID == nil }
+        supportedItems.filter { resolvedTMDBID(for: $0) == nil }
     }
 
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
+
+    private func resolvedTMDBID(for item: JellyfinLibraryItem) -> Int? {
+        item.tmdbID ?? manualMatches[item.id]
+    }
 
     private var filteredItems: [JellyfinLibraryItem] {
         supportedItems.filter { item in
@@ -50,12 +55,12 @@ struct JellyfinLibraryView: View {
             case .all:
                 return true
             case .alreadyInBingeLog:
-                guard let id = item.tmdbID, let kind = item.mediaKind else { return false }
+                guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
                 return savedEntries.contains { $0.tmdbID == id && $0.mediaKind == kind }
             case .new:
                 return importableItems.contains { $0.id == item.id }
             case .needsTMDB:
-                return item.tmdbID == nil
+                return resolvedTMDBID(for: item) == nil
             }
         }
     }
@@ -66,7 +71,7 @@ struct JellyfinLibraryView: View {
 
     private var watchStateDifferences: [JellyfinWatchStateDifference] {
         supportedItems.compactMap { item in
-            guard let id = item.tmdbID, let kind = item.mediaKind,
+            guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind,
                   let jellyfinPlayed = item.userData?.played,
                   let local = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) else { return nil }
             let localCompleted = local.status == .completed
@@ -319,11 +324,11 @@ struct JellyfinLibraryView: View {
 
     @ViewBuilder
     private func libraryItemStatus(_ item: JellyfinLibraryItem) -> some View {
-        if item.tmdbID == nil {
+        if resolvedTMDBID(for: item) == nil {
             Label("Matchas", systemImage: "questionmark.circle")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(BingeTheme.secondaryText)
-        } else if let id = item.tmdbID, let kind = item.mediaKind,
+        } else if let id = resolvedTMDBID(for: item), let kind = item.mediaKind,
                   let saved = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) {
             Label(saved.status == .completed ? "Sett klart" : "Finns sparad", systemImage: "checkmark.circle.fill")
                 .font(.caption2.weight(.semibold))
@@ -421,6 +426,10 @@ struct JellyfinLibraryView: View {
         modelContext.insert(entry)
         do {
             try modelContext.save()
+            if jellyfinItem.tmdbID == nil {
+                manualMatches[jellyfinItem.id] = match.id
+                UserDefaults.standard.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatches")
+            }
             statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
             errorMessage = nil
             return true
@@ -438,7 +447,7 @@ struct JellyfinLibraryView: View {
 
         var insertedEntries: [BingeEntry] = []
         for item in candidates {
-            guard let id = item.tmdbID, let kind = item.mediaKind else { continue }
+            guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { continue }
             let date = item.productionYear.map { "\($0)-01-01" }
             let entry = BingeEntry(
                 tmdbID: id,
