@@ -418,12 +418,38 @@ private struct ProfileView: View {
                         connected: SecureTokenStore.read(service: "BingeLog.MDBList") != nil,
                         symbol: "list.bullet.rectangle"
                     )
+                    connectionRow(
+                        title: "Jellyfin",
+                        subtitle: "Din egen mediaserver",
+                        connected: SecureTokenStore.read(service: "BingeLog.Jellyfin.Token") != nil,
+                        symbol: "server.rack"
+                    )
                     Text("Statusen visar om en nyckel finns sparad – inte om tjänsten har verifierat den. TMDB hanteras under Upptäck och MDBList via importfunktionen nedan.")
                         .font(.caption2)
                         .foregroundStyle(BingeTheme.secondaryText)
                 }
                 .padding(15)
                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+
+                NavigationLink {
+                    JellyfinConnectionView()
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "server.rack")
+                            .font(.title2).foregroundStyle(BingeTheme.accent)
+                            .frame(width: 46, height: 46)
+                            .background(BingeTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Anslut Jellyfin").font(.headline).foregroundStyle(.white)
+                            Text("Koppla din egen mediaserver").font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(BingeTheme.secondaryText)
+                    }
+                    .padding(15)
+                    .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
 
                 NavigationLink {
                     MDBListImportView()
