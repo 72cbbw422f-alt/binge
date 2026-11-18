@@ -254,7 +254,7 @@ private struct HomeView: View {
 }
 
 private struct WatchHistoryView: View {
-    @Query(sort: \\BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
+    @Query(sort: \BingeWatchEvent.occurredAt, order: .reverse) private var events: [BingeWatchEvent]
 
     var body: some View {
         List {
