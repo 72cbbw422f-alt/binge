@@ -160,7 +160,10 @@ struct MDBListImportView: View {
         errorMessage = nil
         statusMessage = nil
         do {
-            SecureTokenStore.save(apiKey, service: "BingeLog.MDBList")
+            guard SecureTokenStore.save(apiKey, service: "BingeLog.MDBList") else {
+                errorMessage = "API-nyckeln kunde inte sparas säkert i nyckelringen."
+                return
+            }
             lists = try await service.userLists(apiKey: apiKey)
             if lists.isEmpty { statusMessage = "Inga egna listor hittades på kontot." }
         } catch {
@@ -179,6 +182,7 @@ struct MDBListImportView: View {
             let items = try await service.listItems(listID: selectedListID, apiKey: apiKey)
             var added = 0
             var skipped = 0
+            var insertedEntries: [BingeEntry] = []
             // Skip duplicates both in SwiftData and within the imported list.
             var knownKeys = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
             for item in items {
@@ -205,12 +209,16 @@ struct MDBListImportView: View {
                     status: .planned
                 )
                 modelContext.insert(entry)
+                insertedEntries.append(entry)
                 added += 1
             }
             try modelContext.save()
             statusMessage = "Klart! \(added) nya titlar importerades. \(skipped) poster hoppades över och befintliga titlar lämnades orörda."
         } catch {
-            errorMessage = error.localizedDescription
+            for entry in insertedEntries { modelContext.delete(entry) }
+            modelContext.rollback()
+            statusMessage = nil
+            errorMessage = "Importen misslyckades och har återställts. Inga nya titlar har lagts till. " + error.localizedDescription
         }
     }
 
