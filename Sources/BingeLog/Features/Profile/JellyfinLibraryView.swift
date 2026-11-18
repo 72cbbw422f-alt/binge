@@ -40,6 +40,17 @@ struct JellyfinLibraryView: View {
         supportedItems.filter { $0.userData?.played == true }
     }
 
+    private var watchStateDifferences: [(item: JellyfinLibraryItem, localStatus: String, jellyfinStatus: String)] {
+        supportedItems.compactMap { item in
+            guard let id = item.tmdbID, let kind = item.mediaKind,
+                  let local = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) else { return nil }
+            let jellyfinPlayed = item.userData?.played == true
+            let localCompleted = local.status == .completed
+            guard jellyfinPlayed != localCompleted else { return nil }
+            return (item, local.status.title, jellyfinPlayed ? "Markerad som sedd" : "Inte markerad som sedd")
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -82,6 +93,7 @@ struct JellyfinLibraryView: View {
                         summaryRow("Nya att importera", value: importableItems.count, symbol: "plus.circle")
                         summaryRow("Saknar TMDB-ID", value: withoutTMDB, symbol: "questionmark.circle")
                         summaryRow("Markerade som sedda i Jellyfin", value: playedItems.count, symbol: "eye")
+                        summaryRow("Skillnader mot BingeLog", value: watchStateDifferences.count, symbol: "arrow.left.arrow.right")
                     }
                     .padding(15)
                     .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -131,6 +143,30 @@ struct JellyfinLibraryView: View {
                             }
                             .padding(11)
                             .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+                    }
+
+                    if !watchStateDifferences.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("SKILLNADER I TITTARSTATUS")
+                                .font(.caption.weight(.bold)).tracking(1.2)
+                                .foregroundStyle(BingeTheme.secondaryText)
+                            Text("Jämförelsen är bara ett underlag. Inga statusar ändras i BingeLog.")
+                                .font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                            ForEach(watchStateDifferences, id: \.item.id) { difference in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(difference.item.name)
+                                        .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                                    HStack {
+                                        Text("BingeLog: \\(difference.localStatus)")
+                                        Spacer()
+                                        Text("Jellyfin: \\(difference.jellyfinStatus)")
+                                    }
+                                    .font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                }
+                                .padding(11)
+                                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                             }
                         }
                     }
