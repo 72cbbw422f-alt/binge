@@ -20,6 +20,7 @@ struct MediaDetailView: View {
     @State private var errorMessage: String?
     @State private var selectedRating = 0.0
     @State private var persistenceError: String?
+    @State private var episodeUpdatesInFlight: Set<String> = []
 
     private let service = TMDBService()
 
@@ -324,6 +325,8 @@ struct MediaDetailView: View {
         let progress = episodeProgress.first {
             $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
         }
+        let progressKey = "\(id)-\(episode.seasonNumber)-\(episode.episodeNumber)"
+        let isUpdating = episodeUpdatesInFlight.contains(progressKey)
         return HStack(spacing: 10) {
             if let url = episode.stillURL {
                 AsyncImage(url: url) { phase in
@@ -341,13 +344,14 @@ struct MediaDetailView: View {
             }
             Spacer()
             Button {
-                toggleEpisode(episode, progress: progress)
+                toggleEpisode(episode)
             } label: {
                 Image(systemName: progress?.isWatched == true ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(progress?.isWatched == true ? BingeTheme.accent : BingeTheme.secondaryText)
             }
             .buttonStyle(.plain)
+            .disabled(isUpdating)
             .accessibilityLabel(progress?.isWatched == true ? "Markera som ej sett" : "Markera som sett")
         }
         .padding(9)
@@ -371,7 +375,15 @@ struct MediaDetailView: View {
         }
     }
 
-    private func toggleEpisode(_ episode: TMDBEpisode, progress: BingeEpisodeProgress?) {
+    private func toggleEpisode(_ episode: TMDBEpisode) {
+        let progressKey = "\(id)-\(episode.seasonNumber)-\(episode.episodeNumber)"
+        guard episodeUpdatesInFlight.insert(progressKey).inserted else { return }
+        defer { episodeUpdatesInFlight.remove(progressKey) }
+
+        // Resolve the current model at tap time instead of relying on a potentially stale row value.
+        let progress = episodeProgress.first {
+            $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
+        }
         if let progress {
             let wasWatched = progress.isWatched
             progress.watchedAt = wasWatched ? nil : .now
