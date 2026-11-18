@@ -124,6 +124,7 @@ struct JellyfinLibraryView: View {
                             }
                             .padding(11)
                             .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            }
                         }
                     }
 
