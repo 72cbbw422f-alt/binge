@@ -50,9 +50,11 @@ struct JellyfinLibraryView: View {
     private func manualMatchKey(for item: JellyfinLibraryItem) -> String {
         let rawServer = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server") ?? "unknown-server"
         var components = URLComponents(string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines))
-        components?.scheme = components?.scheme?.lowercased()
-        components?.host = components?.host?.lowercased()
-        components?.path = components?.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? ""
+        if let scheme = components?.scheme { components?.scheme = scheme.lowercased() }
+        if let host = components?.host { components?.host = host.lowercased() }
+        if let path = components?.path {
+            components?.path = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
         components?.query = nil
         components?.fragment = nil
         let serverIdentity = components?.string ?? rawServer
