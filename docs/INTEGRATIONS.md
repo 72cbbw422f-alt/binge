@@ -21,13 +21,14 @@ Initial scope:
 - Server URL and authentication flow.
 - Retrieve the signed-in user's libraries and media.
 - Match local items to BingeLog records using provider IDs when available, then safe title/year matching as a fallback.
-- Read playback progress and watched state.
-- Add optional live progress/scrobble support only after the basic sync is reliable.
-- Clearly show last successful sync and connection status.
+- Read the signed-in user's watched state (`Played`) from Jellyfin.
+- Show watched markers and compare Jellyfin's watched state with BingeLog's completed status for matched titles.
+- Keep the comparison read-only: never change BingeLog statuses automatically.
+- Add an explicit, reviewable import action before any watched-state synchronization is introduced.
 
 Sync rules:
 - Never silently overwrite a manual BingeLog rating.
-- Allow the user to choose whether Jellyfin watched state updates BingeLog.
+- The current implementation is read-only; any future status update must require an explicit user action and confirmation.
 - Prevent loops if BingeLog later sends watched state back to Jellyfin.
 - Store Jellyfin access tokens in Keychain.
 
@@ -59,8 +60,8 @@ Implementation notes:
 1. TMDB search/details and media identity.
 2. BingeLog-owned watchlist, status, ratings, and diary.
 3. MDBList ratings and curated-list enrichment.
-4. Jellyfin connection and read-only library/progress import.
-5. Optional two-way sync and live scrobbling after conflict handling is tested.
+4. Jellyfin connection, read-only library import, and watched-state comparison.
+5. Explicitly approved watched-state updates; consider two-way sync and live scrobbling only after conflict handling is tested.
 
 ## References
 
