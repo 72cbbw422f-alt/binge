@@ -40,14 +40,14 @@ struct JellyfinLibraryView: View {
         supportedItems.filter { $0.userData?.played == true }
     }
 
-    private var watchStateDifferences: [(item: JellyfinLibraryItem, localStatus: String, jellyfinStatus: String)] {
+    private var watchStateDifferences: [JellyfinWatchStateDifference] {
         supportedItems.compactMap { item in
             guard let id = item.tmdbID, let kind = item.mediaKind,
                   let local = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) else { return nil }
             let jellyfinPlayed = item.userData?.played == true
             let localCompleted = local.status == .completed
             guard jellyfinPlayed != localCompleted else { return nil }
-            return (item, local.status.title, jellyfinPlayed ? "Markerad som sedd" : "Inte markerad som sedd")
+            return JellyfinWatchStateDifference(item: item, localStatus: local.status.title, jellyfinStatus: jellyfinPlayed ? "Markerad som sedd" : "Inte markerad som sedd")
         }
     }
 
@@ -154,14 +154,14 @@ struct JellyfinLibraryView: View {
                                 .foregroundStyle(BingeTheme.secondaryText)
                             Text("Jämförelsen är bara ett underlag. Inga statusar ändras i BingeLog.")
                                 .font(.caption).foregroundStyle(BingeTheme.secondaryText)
-                            ForEach(watchStateDifferences, id: \.item.id) { difference in
+                            ForEach(watchStateDifferences) { difference in
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(difference.item.name)
                                         .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                                     HStack {
-                                        Text("BingeLog: \\(difference.localStatus)")
+                                        Text("BingeLog: \(difference.localStatus)")
                                         Spacer()
-                                        Text("Jellyfin: \\(difference.jellyfinStatus)")
+                                        Text("Jellyfin: \(difference.jellyfinStatus)")
                                     }
                                     .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
@@ -422,4 +422,13 @@ private struct JellyfinTMDBMatchSheet: View {
             .onAppear { query = item.name }
         }
     }
+}
+
+
+private struct JellyfinWatchStateDifference: Identifiable {
+    let item: JellyfinLibraryItem
+    let localStatus: String
+    let jellyfinStatus: String
+
+    var id: String { item.id }
 }
