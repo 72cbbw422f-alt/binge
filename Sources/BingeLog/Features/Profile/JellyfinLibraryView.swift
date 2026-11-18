@@ -36,6 +36,10 @@ struct JellyfinLibraryView: View {
 
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
 
+    private var playedItems: [JellyfinLibraryItem] {
+        supportedItems.filter { $0.userData?.played == true }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -45,7 +49,7 @@ struct JellyfinLibraryView: View {
                         .foregroundStyle(BingeTheme.accent)
                     Text("Ditt bibliotek")
                         .font(.largeTitle.bold()).foregroundStyle(.white)
-                    Text("Hämta filmer och serier från din mediaserver. Bara titlar med TMDB-ID kan matchas säkert mot BingeLog.")
+                    Text("Hämta filmer och serier från din mediaserver. Se även vilka titlar Jellyfin markerat som sedda. Bara titlar med TMDB-ID kan matchas säkert mot BingeLog.")
                         .font(.subheadline).foregroundStyle(BingeTheme.secondaryText)
                 }
 
@@ -77,6 +81,7 @@ struct JellyfinLibraryView: View {
                         summaryRow("Redan sparade", value: matchedItems.count, symbol: "checkmark.circle")
                         summaryRow("Nya att importera", value: importableItems.count, symbol: "plus.circle")
                         summaryRow("Saknar TMDB-ID", value: withoutTMDB, symbol: "questionmark.circle")
+                        summaryRow("Markerade som sedda i Jellyfin", value: playedItems.count, symbol: "eye")
                     }
                     .padding(15)
                     .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -111,7 +116,11 @@ struct JellyfinLibraryView: View {
                                         .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
                                 Spacer()
-                                if item.tmdbID == nil {
+                                if item.userData?.played == true {
+                                    Label("Sedd", systemImage: "checkmark.circle.fill")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(BingeTheme.accent)
+                                } else if item.tmdbID == nil {
                                     Text("Saknar ID").font(.caption2).foregroundStyle(BingeTheme.secondaryText)
                                 } else if let id = item.tmdbID, let kind = item.mediaKind,
                                           savedEntries.contains(where: { $0.tmdbID == id && $0.mediaKind == kind }) {
