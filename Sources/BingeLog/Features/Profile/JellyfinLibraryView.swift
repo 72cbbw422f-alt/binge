@@ -397,7 +397,7 @@ struct JellyfinLibraryView: View {
     private func applyJellyfinWatchedState(_ difference: JellyfinWatchStateDifference) {
         guard difference.item.userData?.played == true,
               let kind = difference.item.mediaKind,
-              let id = difference.item.tmdbID,
+              let id = resolvedTMDBID(for: difference.item),
               let entry = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }),
               entry.status != .completed else { return }
 
