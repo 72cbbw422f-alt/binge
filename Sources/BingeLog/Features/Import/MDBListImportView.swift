@@ -178,11 +178,11 @@ struct MDBListImportView: View {
         defer { isImporting = false }
         errorMessage = nil
         statusMessage = nil
+        var insertedEntries: [BingeEntry] = []
         do {
             let items = try await service.listItems(listID: selectedListID, apiKey: apiKey)
             var added = 0
             var skipped = 0
-            var insertedEntries: [BingeEntry] = []
             // Skip duplicates both in SwiftData and within the imported list.
             var knownKeys = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
             for item in items {
