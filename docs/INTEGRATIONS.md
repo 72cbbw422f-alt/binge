@@ -23,12 +23,14 @@ Initial scope:
 - Match local items to BingeLog records using provider IDs when available, then safe title/year matching as a fallback.
 - Read the signed-in user's watched state (`Played`) from Jellyfin.
 - Show watched markers and compare Jellyfin's watched state with BingeLog's completed status for matched titles.
-- Keep the comparison read-only: never change BingeLog statuses automatically.
-- Add an explicit, reviewable import action before any watched-state synchronization is introduced.
+- Never change BingeLog statuses automatically.
+- For a matched title that Jellyfin marks as played while BingeLog is not completed, offer a per-title action to mark it as completed in BingeLog.
+- Require an explicit confirmation before applying that action. The update is one-way (Jellyfin → BingeLog), records a watch-history event, and leaves the user's personal rating unchanged.
+- Do not infer an unwatched state when Jellyfin omits `UserData.Played`; only explicit `true`/`false` values are comparable.
 
 Sync rules:
 - Never silently overwrite a manual BingeLog rating.
-- The current implementation is read-only; any future status update must require an explicit user action and confirmation.
+- Status comparison itself is read-only. The only current status update is the explicitly confirmed, one-way Jellyfin → BingeLog action described above; BingeLog never writes watched state back to Jellyfin.
 - Prevent loops if BingeLog later sends watched state back to Jellyfin.
 - Store Jellyfin access tokens in Keychain.
 
@@ -60,8 +62,8 @@ Implementation notes:
 1. TMDB search/details and media identity.
 2. BingeLog-owned watchlist, status, ratings, and diary.
 3. MDBList ratings and curated-list enrichment.
-4. Jellyfin connection, read-only library import, and watched-state comparison.
-5. Explicitly approved watched-state updates; consider two-way sync and live scrobbling only after conflict handling is tested.
+4. Jellyfin connection, library import, and watched-state comparison.
+5. Explicitly confirmed one-way Jellyfin → BingeLog watched-state updates; consider two-way sync and live scrobbling only after conflict handling is designed and tested.
 
 ## References
 
