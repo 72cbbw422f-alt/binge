@@ -30,7 +30,7 @@ struct MediaDetailView: View {
 
     private var retainedWatchedEpisodeCount: Int {
         guard mediaKind == .tv else { return 0 }
-        return Set(episodeProgress.compactMap { item in
+        return Set<String>(episodeProgress.compactMap { (item: BingeEpisodeProgress) -> String? in
             guard item.seriesTMDBID == id, item.isWatched else { return nil }
             return "\(item.seasonNumber)-\(item.episodeNumber)"
         }).count
@@ -260,7 +260,7 @@ struct MediaDetailView: View {
     private var seriesProgressSection: some View {
         let seasons = details?.seasons?.filter { $0.seasonNumber > 0 } ?? []
         let totalEpisodes = seasons.reduce(0) { $0 + $1.episodeCount }
-        let watchedEpisodes = Set(episodeProgress.compactMap { item in
+        let watchedEpisodes = Set<String>(episodeProgress.compactMap { (item: BingeEpisodeProgress) -> String? in
             guard item.seriesTMDBID == id, item.isWatched, item.seasonNumber > 0 else { return nil }
             return "\(item.seasonNumber)-\(item.episodeNumber)"
         }).count
@@ -298,7 +298,7 @@ struct MediaDetailView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(season.name).font(.headline).foregroundStyle(.white)
-                                    let watched = Set(episodeProgress.compactMap { item in
+                                    let watched = Set<Int>(episodeProgress.compactMap { (item: BingeEpisodeProgress) -> Int? in
                                         guard item.seriesTMDBID == id, item.seasonNumber == season.seasonNumber, item.isWatched else { return nil }
                                         return item.episodeNumber
                                     }).count
