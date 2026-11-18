@@ -22,6 +22,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: se.bingelog.app
         INFOPLIST_KEY_UIUserInterfaceStyle: Dark
         ENABLE_PREVIEWS: YES
+  BingeLogTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/BingeLogTests
+    dependencies:
+      - target: BingeLog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.bingelog.tests
 schemes:
   BingeLog:
     build:
