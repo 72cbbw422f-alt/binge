@@ -10,6 +10,8 @@ struct JellyfinLibraryView: View {
     @State private var statusMessage: String?
     @State private var itemToMatch: JellyfinLibraryItem?
     @State private var differenceToConfirm: JellyfinWatchStateDifference?
+    @State private var searchText = ""
+    @State private var libraryFilter: JellyfinLibraryFilter = .all
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -36,6 +38,26 @@ struct JellyfinLibraryView: View {
     }
 
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
+
+    private var filteredItems: [JellyfinLibraryItem] {
+        supportedItems.filter { item in
+            let matchesSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || item.name.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard matchesSearch else { return false }
+
+            switch libraryFilter {
+            case .all:
+                return true
+            case .alreadyInBingeLog:
+                guard let id = item.tmdbID, let kind = item.mediaKind else { return false }
+                return savedEntries.contains { $0.tmdbID == id && $0.mediaKind == kind }
+            case .new:
+                return importableItems.contains { $0.id == item.id }
+            case .needsTMDB:
+                return item.tmdbID == nil
+            }
+        }
+    }
 
     private var playedItems: [JellyfinLibraryItem] {
         supportedItems.filter { $0.userData?.played == true }
@@ -117,8 +139,29 @@ struct JellyfinLibraryView: View {
                         Text("FILMER OCH SERIER")
                             .font(.caption.weight(.bold)).tracking(1.2)
                             .foregroundStyle(BingeTheme.secondaryText)
+
+                        TextField("Sök i Jellyfin-biblioteket", text: $searchText)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+
+                        Picker("Visa", selection: $libraryFilter) {
+                            ForEach(JellyfinLibraryFilter.allCases) { filter in
+                                Text(filter.title).tag(filter)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if filteredItems.isEmpty {
+                            Text("Inga titlar matchar din sökning eller ditt filter.")
+                                .font(.subheadline)
+                                .foregroundStyle(BingeTheme.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        }
+
                         LazyVStack(spacing: 10) {
-                            ForEach(supportedItems) { item in
+                            ForEach(filteredItems) { item in
                             HStack(spacing: 10) {
                                 Image(systemName: item.mediaKind == .movie ? "film" : "tv")
                                     .foregroundStyle(BingeTheme.accent)
@@ -496,4 +539,23 @@ private struct JellyfinWatchStateDifference: Identifiable {
     let jellyfinStatus: String
 
     var id: String { item.id }
+}
+
+
+private enum JellyfinLibraryFilter: String, CaseIterable, Identifiable {
+    case all
+    case alreadyInBingeLog
+    case new
+    case needsTMDB
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "Alla"
+        case .alreadyInBingeLog: return "Sparade"
+        case .new: return "Nya"
+        case .needsTMDB: return "Matchas"
+        }
+    }
 }
