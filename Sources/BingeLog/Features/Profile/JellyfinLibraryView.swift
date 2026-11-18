@@ -475,6 +475,7 @@ private struct JellyfinTMDBMatchSheet: View {
     @State private var results: [TMDBMediaItem] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedMatch: TMDBMediaItem?
     private let service = TMDBService()
 
     var body: some View {
@@ -494,7 +495,7 @@ private struct JellyfinTMDBMatchSheet: View {
                 }
                 List(results) { result in
                     Button {
-                        onSelect(result)
+                        selectedMatch = result
                     } label: {
                         HStack(spacing: 12) {
                             AsyncImage(url: result.posterURL) { phase in
@@ -511,6 +512,13 @@ private struct JellyfinTMDBMatchSheet: View {
                                 Text(result.displayTitle).font(.subheadline.weight(.semibold))
                                 Text([result.mediaType?.displayName, result.year].compactMap { $0 }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary)
+                                if let jellyfinYear = item.productionYear,
+                                   let resultYear = result.year,
+                                   String(jellyfinYear) != resultYear {
+                                    Label("Årtalet skiljer sig från Jellyfin (\(jellyfinYear))", systemImage: "exclamationmark.triangle")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.orange)
+                                }
                                 if let rating = result.rating {
                                     Label(rating, systemImage: "star.fill").font(.caption2).foregroundStyle(.secondary)
                                 }
@@ -552,7 +560,34 @@ private struct JellyfinTMDBMatchSheet: View {
                 }
             }
             .onAppear { query = item.name }
+            .confirmationDialog(
+                "Bekräfta TMDB-matchning",
+                isPresented: Binding(
+                    get: { selectedMatch != nil },
+                    set: { if !$0 { selectedMatch = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Matcha och lägg till") {
+                    if let selectedMatch {
+                        onSelect(selectedMatch)
+                    }
+                    selectedMatch = nil
+                }
+                Button("Välj en annan titel", role: .cancel) {
+                    selectedMatch = nil
+                }
+            } message: {
+                Text(matchConfirmationMessage)
+            }
         }
+    }
+
+    private var matchConfirmationMessage: String {
+        guard let selectedMatch else { return "Titeln läggs till i Vill se." }
+        let selectedYear = selectedMatch.year ?? "okänt år"
+        let jellyfinYear = item.productionYear.map(String.init) ?? "okänt år"
+        return "\(selectedMatch.displayTitle) (\(selectedYear)) väljs för Jellyfin-titeln \(item.name) (\(jellyfinYear)). Kontrollera att det är rätt version."
     }
 }
 
