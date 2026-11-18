@@ -12,6 +12,7 @@ struct JellyfinLibraryView: View {
     @State private var differenceToConfirm: JellyfinWatchStateDifference?
     @State private var searchText = ""
     @State private var libraryFilter: JellyfinLibraryFilter = .all
+    @State private var isImportConfirmationPresented = false
     private let service = JellyfinService()
 
     private var supportedItems: [JellyfinLibraryItem] {
@@ -123,7 +124,7 @@ struct JellyfinLibraryView: View {
 
                     if importableItems.count > 0 {
                         Button {
-                            importNewItems()
+                            isImportConfirmationPresented = true
                         } label: {
                             HStack {
                                                 Text("Importera \(importableItems.count) nya titlar")
@@ -172,18 +173,7 @@ struct JellyfinLibraryView: View {
                                         .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                                 }
                                 Spacer()
-                                if item.userData?.played == true {
-                                    Label("Sedd", systemImage: "checkmark.circle.fill")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(BingeTheme.accent)
-                                } else if item.tmdbID == nil {
-                                    Text("Saknar ID").font(.caption2).foregroundStyle(BingeTheme.secondaryText)
-                                } else if let id = item.tmdbID, let kind = item.mediaKind,
-                                          savedEntries.contains(where: { $0.tmdbID == id && $0.mediaKind == kind }) {
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(BingeTheme.accent)
-                                } else {
-                                    Image(systemName: "plus.circle").foregroundStyle(BingeTheme.secondaryText)
-                                }
+                                libraryItemStatus(item)
                             }
                             .padding(11)
                             .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -196,7 +186,7 @@ struct JellyfinLibraryView: View {
                             Text("SKILLNADER I TITTARSTATUS")
                                 .font(.caption.weight(.bold)).tracking(1.2)
                                 .foregroundStyle(BingeTheme.secondaryText)
-                            Text("Jämförelsen är bara ett underlag. Inga statusar ändras i BingeLog.")
+                            Text("Jämförelsen ändrar inget automatiskt. Du kan själv välja att föra över en bekräftad sedd-status från Jellyfin.")
                                 .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                             ForEach(watchStateDifferences) { difference in
                                 VStack(alignment: .leading, spacing: 7) {
@@ -281,6 +271,18 @@ struct JellyfinLibraryView: View {
             }
         }
         .confirmationDialog(
+            "Importera nya titlar?",
+            isPresented: $isImportConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Importera \(importableItems.count) titlar") {
+                importNewItems()
+            }
+            Button("Avbryt", role: .cancel) { }
+        } message: {
+            Text("Titlarna läggs till i Vill se. Befintliga poster, personliga betyg och tittarhistorik ändras inte.")
+        }
+        .confirmationDialog(
             "Markera som sedd i BingeLog?",
             isPresented: Binding(
                 get: { differenceToConfirm != nil },
@@ -313,6 +315,28 @@ struct JellyfinLibraryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 13))
+    }
+
+    @ViewBuilder
+    private func libraryItemStatus(_ item: JellyfinLibraryItem) -> some View {
+        if item.tmdbID == nil {
+            Label("Matchas", systemImage: "questionmark.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(BingeTheme.secondaryText)
+        } else if let id = item.tmdbID, let kind = item.mediaKind,
+                  let saved = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) {
+            Label(saved.status == .completed ? "Sett klart" : "Finns sparad", systemImage: "checkmark.circle.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(BingeTheme.accent)
+        } else if item.userData?.played == true {
+            Label("Sedd i Jellyfin", systemImage: "eye")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(BingeTheme.accent)
+        } else {
+            Label("Ny", systemImage: "plus.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(BingeTheme.secondaryText)
+        }
     }
 
     private func summaryRow(_ title: String, value: Int, symbol: String) -> some View {
