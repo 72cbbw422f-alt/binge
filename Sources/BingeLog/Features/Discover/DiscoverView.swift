@@ -28,6 +28,19 @@ struct DiscoverView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .foregroundStyle(.white)
+                        .submitLabel(.search)
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                            results = []
+                            errorMessage = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(BingeTheme.secondaryText)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Rensa sökning")
+                    }
                 }
                 .padding(15)
                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 15))
