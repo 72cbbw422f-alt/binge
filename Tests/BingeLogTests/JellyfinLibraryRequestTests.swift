@@ -15,16 +15,16 @@ final class JellyfinLibraryRequestTests: XCTestCase {
             let limit = Int(components.queryItems?.first(where: { $0.name == "Limit" })?.value ?? "") ?? -1
 
             guard request.url?.path == "/jellyfin/Users/user-123/Items",
-                  request.value(forHTTPHeaderField: "Authorization")?.contains("Token=\\"secret-token\\"") == true,
+                  request.value(forHTTPHeaderField: "Authorization")?.contains("Token=\"secret-token\"") == true,
                   limit == 200 else {
                 return (400, Data())
             }
 
             let count = start == 400 ? 25 : 200
             let items = (start..<(start + count)).map { index in
-                "{\\"Id\\":\\"item-\\(index)\\",\\"Name\\":\\"Title \\(index)\\",\\"Type\\":\\"Movie\\"}"
+                "{\"Id\":\"item-\(index)\",\"Name\":\"Title \(index)\",\"Type\":\"Movie\"}"
             }.joined(separator: ",")
-            let json = "{\\"Items\\":[\(items)],\\"TotalRecordCount\\":425}"
+            let json = "{\"Items\":[\(items)],\"TotalRecordCount\":425}"
             return (200, Data(json.utf8))
         }
 
@@ -46,9 +46,9 @@ final class JellyfinLibraryRequestTests: XCTestCase {
             let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
             let start = Int(components.queryItems?.first(where: { $0.name == "StartIndex" })?.value ?? "") ?? -1
             let items = (0..<3).map { index in
-                "{\\"Id\\":\\"item-\\(start + index)\\",\\"Name\\":\\"Title\\",\\"Type\\":\\"Series\\"}"
+                "{\"Id\":\"item-\(start + index)\",\"Name\":\"Title\",\"Type\":\"Series\"}"
             }.joined(separator: ",")
-            return (200, Data("{\\"Items\\":[\(items)]}".utf8))
+            return (200, Data("{\"Items\":[\(items)]}".utf8))
         }
 
         let service = JellyfinService(session: makeSession())
