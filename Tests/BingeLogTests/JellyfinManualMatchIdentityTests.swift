@@ -122,4 +122,36 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
         XCTAssertNil(item.tmdbID)
         XCTAssertNil(item.userData?.played)
     }
+
+    func testLibraryResponseDecodesItemsAndTotalRecordCount() throws {
+        let json = """
+        {
+          "Items": [
+            { "Id": "movie-1", "Name": "First Film", "Type": "Movie" },
+            { "Id": "series-1", "Name": "First Series", "Type": "Series" }
+          ],
+          "TotalRecordCount": 425
+        }
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(JellyfinLibraryResponse.self, from: json)
+
+        XCTAssertEqual(response.items.count, 2)
+        XCTAssertEqual(response.totalRecordCount, 425)
+        XCTAssertEqual(response.items.map(\.id), ["movie-1", "series-1"])
+    }
+
+    func testUnsupportedJellyfinItemTypeIsNotTreatedAsMovieOrSeries() throws {
+        let json = """
+        {
+          "Id": "episode-1",
+          "Name": "Episode One",
+          "Type": "Episode"
+        }
+        """.data(using: .utf8)!
+
+        let item = try JSONDecoder().decode(JellyfinLibraryItem.self, from: json)
+
+        XCTAssertNil(item.mediaKind)
+    }
 }
