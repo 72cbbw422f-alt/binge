@@ -163,14 +163,126 @@ struct DiscoverView: View {
                     .buttonStyle(.bordered)
                     .tint(BingeTheme.accent)
             } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(trendingItems) { item in
-                        resultRow(item)
-                    }
+                let movies = trendingItems.filter { $0.mediaType == .movie }
+                let series = trendingItems.filter { $0.mediaType == .tv }
+                if !movies.isEmpty {
+                    trendingShelf(title: "Filmer", subtitle: "Veckans mest omtalade", items: movies)
+                }
+                if !series.isEmpty {
+                    trendingShelf(title: "Serier", subtitle: "Något nytt att fastna i", items: series)
+                }
+                if movies.isEmpty && series.isEmpty {
+                    ContentUnavailableView("Inga titlar hittades", systemImage: "film.stack")
+                        .foregroundStyle(.white)
                 }
             }
         }
         .padding(.top, 4)
+    }
+
+    private func trendingShelf(title: String, subtitle: String, items: [TMDBMediaItem]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(BingeTheme.secondaryText)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 13) {
+                    ForEach(items) { item in
+                        trendingCard(item)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .contentMargins(.trailing, 2)
+        }
+    }
+
+    private func trendingCard(_ item: TMDBMediaItem) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                NavigationLink {
+                    MediaDetailView(
+                        id: item.id,
+                        mediaKind: item.mediaType == .tv ? .tv : .movie,
+                        fallbackTitle: item.displayTitle,
+                        fallbackOverview: item.overview ?? "",
+                        fallbackPosterPath: item.posterPath,
+                        fallbackBackdropPath: item.backdropPath
+                    )
+                } label: {
+                    AsyncImage(url: item.posterURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            posterPlaceholder
+                        }
+                    }
+                    .frame(width: 142, height: 212)
+                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .overlay(alignment: .bottom) {
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.55)],
+                            startPoint: .center,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 13))
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    save(item)
+                } label: {
+                    Image(systemName: isSaved(item) ? "checkmark" : "plus")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(isSaved(item) ? BingeTheme.accent : .black)
+                        .frame(width: 31, height: 31)
+                        .background(isSaved(item) ? BingeTheme.surface : BingeTheme.accent, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(isSaved(item))
+                .padding(8)
+                .accessibilityLabel(isSaved(item) ? "Redan sparad" : "Lägg till i samlingen")
+            }
+
+            NavigationLink {
+                MediaDetailView(
+                    id: item.id,
+                    mediaKind: item.mediaType == .tv ? .tv : .movie,
+                    fallbackTitle: item.displayTitle,
+                    fallbackOverview: item.overview ?? "",
+                    fallbackPosterPath: item.posterPath,
+                    fallbackBackdropPath: item.backdropPath
+                )
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.displayTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    HStack(spacing: 6) {
+                        if let year = item.year {
+                            Text(year)
+                        }
+                        if let rating = item.rating {
+                            Label(rating, systemImage: "star.fill")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(BingeTheme.secondaryText)
+                }
+                .frame(width: 142, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(width: 142, alignment: .topLeading)
     }
 
     private var header: some View {
