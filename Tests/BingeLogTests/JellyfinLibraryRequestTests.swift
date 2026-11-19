@@ -1,0 +1,149 @@
+import Foundation
+import XCTest
+@testable import BingeLog
+
+final class JellyfinLibraryRequestTests: XCTestCase {
+    override func tearDown() {
+        MockJellyfinURLProtocol.reset()
+        super.tearDown()
+    }
+
+    func testLibraryItemsFetchesEveryPageAndUsesToken() async throws {
+        MockJellyfinURLProtocol.install { request in
+            let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
+            let start = Int(components.queryItems?.first(where: { $0.name == "StartIndex" })?.value ?? "") ?? -1
+            let limit = Int(components.queryItems?.first(where: { $0.name == "Limit" })?.value ?? "") ?? -1
+
+            guard request.url?.path == "/jellyfin/Users/user-123/Items",
+                  request.value(forHTTPHeaderField: "Authorization")?.contains("Token=\\"secret-token\\"") == true,
+                  limit == 200 else {
+                return (400, Data())
+            }
+
+            let count = start == 400 ? 25 : 200
+            let items = (start..<(start + count)).map { index in
+                "{\\"Id\\":\\"item-\\(index)\\",\\"Name\\":\\"Title \\(index)\\",\\"Type\\":\\"Movie\\"}"
+            }.joined(separator: ",")
+            let json = "{\\"Items\\":[\(items)],\\"TotalRecordCount\\":425}"
+            return (200, Data(json.utf8))
+        }
+
+        let service = JellyfinService(session: makeSession())
+        let items = try await service.libraryItems(
+            server: "https://media.example.com/jellyfin/",
+            userID: "user-123",
+            token: "secret-token"
+        )
+
+        XCTAssertEqual(items.count, 425)
+        XCTAssertEqual(items.first?.id, "item-0")
+        XCTAssertEqual(items.last?.id, "item-424")
+        XCTAssertEqual(MockJellyfinURLProtocol.capturedStartIndexes, [0, 200, 400])
+    }
+
+    func testLibraryItemsStopsWhenServerReturnsShortPageWithoutTotal() async throws {
+        MockJellyfinURLProtocol.install { request in
+            let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
+            let start = Int(components.queryItems?.first(where: { $0.name == "StartIndex" })?.value ?? "") ?? -1
+            let items = (0..<3).map { index in
+                "{\\"Id\\":\\"item-\\(start + index)\\",\\"Name\\":\\"Title\\",\\"Type\\":\\"Series\\"}"
+            }.joined(separator: ",")
+            return (200, Data("{\\"Items\\":[\(items)]}".utf8))
+        }
+
+        let service = JellyfinService(session: makeSession())
+        let items = try await service.libraryItems(
+            server: "http://media.example.com",
+            userID: "user-123",
+            token: "secret-token"
+        )
+
+        XCTAssertEqual(items.count, 3)
+        XCTAssertEqual(MockJellyfinURLProtocol.capturedStartIndexes, [0])
+    }
+
+    func testLibraryItemsThrowsForHTTPError() async {
+        MockJellyfinURLProtocol.install { _ in (401, Data()) }
+        let service = JellyfinService(session: makeSession())
+
+        do {
+            _ = try await service.libraryItems(
+                server: "https://media.example.com",
+                userID: "user-123",
+                token: "bad-token"
+            )
+            XCTFail("Expected an HTTP status error")
+        } catch let error as JellyfinError {
+            guard case .httpStatus(401) = error else {
+                return XCTFail("Unexpected Jellyfin error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    private func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockJellyfinURLProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+}
+
+private final class MockJellyfinURLProtocol: URLProtocol {
+    typealias Handler = (URLRequest) -> (Int, Data)
+
+    private static let lock = NSLock()
+    private static var storedHandler: Handler?
+    private static var storedStartIndexes: [Int] = []
+
+    static var capturedStartIndexes: [Int] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedStartIndexes
+    }
+
+    static func install(handler: @escaping Handler) {
+        lock.lock()
+        storedHandler = handler
+        storedStartIndexes = []
+        lock.unlock()
+    }
+
+    static func reset() {
+        lock.lock()
+        storedHandler = nil
+        storedStartIndexes = []
+        lock.unlock()
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        let handler = Self.storedHandler
+        if let value = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "StartIndex" })?.value.flatMap(Int.init) {
+            Self.storedStartIndexes.append(value)
+        }
+        Self.lock.unlock()
+
+        guard let handler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        let (status, data) = handler(request)
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: status,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
