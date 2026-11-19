@@ -63,18 +63,9 @@ final class JellyfinLibraryRequestTests: XCTestCase {
     }
 
     func testAuthenticateSendsCredentialsAndDecodesUserAndToken() async throws {
+        var capturedRequest: URLRequest?
         MockJellyfinURLProtocol.install { request in
-            guard request.httpMethod == "POST",
-                  request.url?.path == "/jellyfin/Users/AuthenticateByName",
-                  request.value(forHTTPHeaderField: "Content-Type") == "application/json",
-                  request.value(forHTTPHeaderField: "Authorization")?.contains("Client=\"BingeLog\"") == true,
-                  let body = request.httpBody,
-                  let object = try? JSONSerialization.jsonObject(with: body) as? [String: String],
-                  object["Username"] == "niklas",
-                  object["Pw"] == "test-password" else {
-                return (400, Data())
-            }
-
+            capturedRequest = request
             let json = """
             {
               "AccessToken": "returned-token",
@@ -94,6 +85,16 @@ final class JellyfinLibraryRequestTests: XCTestCase {
         XCTAssertEqual(result.accessToken, "returned-token")
         XCTAssertEqual(result.user.id, "user-123")
         XCTAssertEqual(result.user.name, "Niklas")
+
+        let request = try XCTUnwrap(capturedRequest)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.path, "/jellyfin/Users/AuthenticateByName")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        XCTAssertTrue(request.value(forHTTPHeaderField: "Authorization")?.contains("Client=\"BingeLog\"") == true)
+        let body = try XCTUnwrap(request.httpBody)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(object["Username"], "niklas")
+        XCTAssertEqual(object["Pw"], "test-password")
     }
 
     func testAuthenticateRejectsInvalidCredentialsFromServer() async {
