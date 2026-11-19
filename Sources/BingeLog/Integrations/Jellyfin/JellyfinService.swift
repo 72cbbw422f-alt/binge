@@ -251,7 +251,8 @@ struct JellyfinService {
               components.host != nil,
               components.user == nil,
               components.password == nil else { return nil }
-        components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components.path = path.isEmpty ? "" : "/" + path
         components.query = nil
         components.fragment = nil
         guard let url = components.url else { return nil }
