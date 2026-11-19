@@ -343,10 +343,18 @@ struct CollectionView: View {
             HStack(spacing: 4) {
                 Image(systemName: entry.status.symbol)
                 Text(entry.status.title)
+                Spacer(minLength: 0)
             }
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(statusColor(entry.status))
             .lineLimit(1)
+
+            if let rating = entry.userRating {
+                Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color(hex: 0xF5B94C))
+                    .accessibilityLabel("Ditt betyg: (rating.formatted(.number.precision(.fractionLength(1))) av 10)")
+            }
         }
         .frame(width: 118, alignment: .leading)
     }
