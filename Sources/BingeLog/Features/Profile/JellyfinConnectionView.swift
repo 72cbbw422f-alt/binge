@@ -96,7 +96,7 @@ struct JellyfinConnectionView: View {
                         .foregroundStyle(BingeTheme.secondaryText)
                     Text("Anslutningen använder Jellyfins MediaBrowser-autentisering. Serveradress, användarnamn och åtkomsttoken sparas i iOS-nyckelringen. Lösenordet sparas inte.")
                         .font(.caption).foregroundStyle(BingeTheme.secondaryText)
-                    Text("Det här första steget etablerar en säker användarsession. Bibliotekssynk och uppspelningsstatus byggs ovanpå anslutningen i nästa steg.")
+                    Text("När anslutningen är klar kan du hämta biblioteket, matcha titlar som saknar TMDB-koppling och jämföra tittarstatus. Överföring till BingeLog sker först när du godkänner den.")
                         .font(.caption).foregroundStyle(BingeTheme.secondaryText)
                 }
                 .padding(15)
