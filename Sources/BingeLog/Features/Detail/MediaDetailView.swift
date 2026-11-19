@@ -225,12 +225,17 @@ struct MediaDetailView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color(hex: 0xF5B94C))
                     }
-                    Slider(value: $selectedRating, in: 0...10, step: 0.5)
-                        .tint(Color(hex: 0xF5B94C))
-                        .onChange(of: selectedRating) { _, value in
-                            savedEntry?.userRating = value == 0 ? nil : value
+                    Slider(
+                        value: $selectedRating,
+                        in: 0...10,
+                        step: 0.5,
+                        onEditingChanged: { isEditing in
+                            guard !isEditing else { return }
+                            savedEntry?.userRating = selectedRating == 0 ? nil : selectedRating
                             saveChanges()
                         }
+                    )
+                    .tint(Color(hex: 0xF5B94C))
                     HStack {
                         Text("Tryck och dra för att sätta betyg")
                         Spacer()
