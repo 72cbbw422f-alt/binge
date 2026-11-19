@@ -86,19 +86,7 @@ struct DiscoverView: View {
             if term.isEmpty {
                 results = []
                 errorMessage = nil
-                guard trendingItems.isEmpty else { return }
-                isLoadingTrending = true
-                defer { isLoadingTrending = false }
-                do {
-                    let response = try await service.trending()
-                    try Task.checkCancellation()
-                    trendingItems = response.results.filter { $0.mediaType == .movie || $0.mediaType == .tv }
-                    trendingError = nil
-                } catch is CancellationError {
-                    return
-                } catch {
-                    trendingError = error.localizedDescription
-                }
+                await loadTrending()
                 return
             }
 
@@ -131,6 +119,22 @@ struct DiscoverView: View {
         }
     }
 
+    private func loadTrending(force: Bool = false) async {
+        guard force || trendingItems.isEmpty else { return }
+        isLoadingTrending = true
+        defer { isLoadingTrending = false }
+        do {
+            let response = try await service.trending()
+            try Task.checkCancellation()
+            trendingItems = response.results.filter { $0.mediaType == .movie || $0.mediaType == .tv }
+            trendingError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            trendingError = error.localizedDescription
+        }
+    }
+
     private var trendingSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 5) {
@@ -155,7 +159,7 @@ struct DiscoverView: View {
                     description: Text(trendingError)
                 )
                 .foregroundStyle(.white)
-                Button("Försök igen") { trendingItems = []; trendingError = nil }
+                Button("Försök igen") { Task { await loadTrending(force: true) } }
                     .buttonStyle(.bordered)
                     .tint(BingeTheme.accent)
             } else {
