@@ -20,19 +20,37 @@ struct JellyfinLibraryView: View {
         items.filter { $0.mediaKind != nil }
     }
 
+    // Build the local identity index once per view update instead of scanning
+    // every saved entry for every Jellyfin item.
+    private var savedEntryLookup: [String: BingeEntry] {
+        Dictionary(
+            savedEntries.map { (entryKey(kind: $0.mediaKind, id: $0.tmdbID), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    private func entryKey(kind: BingeMediaKind, id: Int) -> String {
+        "\(kind.rawValue)-\(id)"
+    }
+
     private var matchedItems: [JellyfinLibraryItem] {
-        supportedItems.filter { item in
+        let savedKeys = Set(savedEntryLookup.keys)
+        return supportedItems.filter { item in
             guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
-            return savedEntries.contains { $0.tmdbID == id && $0.mediaKind == kind }
+            return savedKeys.contains(entryKey(kind: kind, id: id))
         }
     }
 
     private var importableItems: [JellyfinLibraryItem] {
-        var known = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
+        var known = Set(savedEntryLookup.keys)
         return supportedItems.filter { item in
             guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
-            return known.insert("\(kind.rawValue)-\(id)").inserted
+            return known.insert(entryKey(kind: kind, id: id)).inserted
         }
+    }
+
+    private var importableItemIDs: Set<String> {
+        Set(importableItems.map(\.id))
     }
 
     private var itemsWithoutTMDB: [JellyfinLibraryItem] {
@@ -72,19 +90,21 @@ struct JellyfinLibraryView: View {
     }
 
     private var filteredItems: [JellyfinLibraryItem] {
-        supportedItems.filter { item in
-            let matchesSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || item.name.localizedCaseInsensitiveContains(searchText.trimmingCharacters(in: .whitespacesAndNewlines))
-            guard matchesSearch else { return false }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedKeys = Set(savedEntryLookup.keys)
+        let newItemIDs = libraryFilter == .new ? importableItemIDs : []
+
+        return supportedItems.filter { item in
+            guard query.isEmpty || item.name.localizedCaseInsensitiveContains(query) else { return false }
 
             switch libraryFilter {
             case .all:
                 return true
             case .alreadyInBingeLog:
                 guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { return false }
-                return savedEntries.contains { $0.tmdbID == id && $0.mediaKind == kind }
+                return savedKeys.contains(entryKey(kind: kind, id: id))
             case .new:
-                return importableItems.contains { $0.id == item.id }
+                return newItemIDs.contains(item.id)
             case .needsTMDB:
                 return resolvedTMDBID(for: item) == nil
             }
@@ -96,10 +116,11 @@ struct JellyfinLibraryView: View {
     }
 
     private var watchStateDifferences: [JellyfinWatchStateDifference] {
-        supportedItems.compactMap { item in
+        let saved = savedEntryLookup
+        return supportedItems.compactMap { item in
             guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind,
                   let jellyfinPlayed = item.userData?.played,
-                  let local = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) else { return nil }
+                  let local = saved[entryKey(kind: kind, id: id)] else { return nil }
             let localCompleted = local.status == .completed
             guard jellyfinPlayed != localCompleted else { return nil }
             return JellyfinWatchStateDifference(item: item, localStatus: local.status.title, jellyfinStatus: jellyfinPlayed ? "Markerad som sedd" : "Inte markerad som sedd")
@@ -356,7 +377,7 @@ struct JellyfinLibraryView: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(BingeTheme.secondaryText)
         } else if let id = resolvedTMDBID(for: item), let kind = item.mediaKind,
-                  let saved = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }) {
+                  let saved = savedEntryLookup[entryKey(kind: kind, id: id)] {
             Label(saved.status == .completed ? "Sett klart" : "Finns sparad", systemImage: "checkmark.circle.fill")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(BingeTheme.accent)
@@ -398,7 +419,7 @@ struct JellyfinLibraryView: View {
         guard difference.item.userData?.played == true,
               let kind = difference.item.mediaKind,
               let id = resolvedTMDBID(for: difference.item),
-              let entry = savedEntries.first(where: { $0.tmdbID == id && $0.mediaKind == kind }),
+              let entry = savedEntryLookup[entryKey(kind: kind, id: id)],
               entry.status != .completed else { return }
 
         let previousStatus = entry.status
