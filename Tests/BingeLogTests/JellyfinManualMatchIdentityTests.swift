@@ -154,4 +154,58 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
 
         XCTAssertNil(item.mediaKind)
     }
+
+    func testPaginationAdvancesWhenMorePagesRemain() {
+        XCTAssertEqual(
+            JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: 0,
+                receivedCount: 200,
+                totalRecordCount: 425,
+                pageSize: 200
+            ),
+            200
+        )
+    }
+
+    func testPaginationStopsAtReportedTotal() {
+        XCTAssertNil(
+            JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: 200,
+                receivedCount: 25,
+                totalRecordCount: 225,
+                pageSize: 200
+            )
+        )
+    }
+
+    func testPaginationStopsOnEmptyPageOrShortUnknownTotalPage() {
+        XCTAssertNil(
+            JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: 400,
+                receivedCount: 0,
+                totalRecordCount: 425,
+                pageSize: 200
+            )
+        )
+        XCTAssertNil(
+            JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: 0,
+                receivedCount: 12,
+                totalRecordCount: nil,
+                pageSize: 200
+            )
+        )
+    }
+
+    func testPaginationContinuesFullPageWhenTotalIsUnknown() {
+        XCTAssertEqual(
+            JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: 200,
+                receivedCount: 200,
+                totalRecordCount: nil,
+                pageSize: 200
+            ),
+            400
+        )
+    }
 }
