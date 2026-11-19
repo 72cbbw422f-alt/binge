@@ -4,15 +4,26 @@ import Foundation
 /// Kept outside SwiftUI so the rules can be covered by unit tests.
 enum JellyfinManualMatchIdentity {
     static func serverIdentity(for rawServer: String) -> String? {
-        guard var components = URLComponents(
-            string: rawServer.trimmingCharacters(in: .whitespacesAndNewlines)
-        ),
-        let scheme = components.scheme,
-        let host = components.host else {
+        let trimmed = rawServer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let separator = trimmed.range(of: "://") else {
             return nil
         }
 
-        components.scheme = scheme.lowercased()
+        let rawScheme = String(trimmed[..<separator.lowerBound])
+        let scheme = rawScheme.lowercased()
+        guard scheme == "http" || scheme == "https" else {
+            return nil
+        }
+
+        let normalized = scheme + trimmed[separator.lowerBound...]
+        guard var components = URLComponents(string: normalized),
+              let host = components.host,
+              !host.isEmpty,
+              components.user == nil,
+              components.password == nil else {
+            return nil
+        }
+
         components.host = host.lowercased()
         components.path = components.path.trimmingCharacters(
             in: CharacterSet(charactersIn: "/")
