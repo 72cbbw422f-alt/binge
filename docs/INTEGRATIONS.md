@@ -20,7 +20,7 @@ Connection is user-configured and opt-in.
 Initial scope:
 - Server URL and authentication flow.
 - Retrieve the signed-in user's libraries and media.
-- Match local items to BingeLog records using provider IDs when available, then safe title/year matching as a fallback.
+- Match local items to BingeLog records using TMDB provider IDs when available. If a TMDB ID is missing, require the user to select a TMDB result manually; do not automatically match by title or year.
 - Read the signed-in user's watched state (`Played`) from Jellyfin.
 - Show watched markers and compare Jellyfin's watched state with BingeLog's completed status for matched titles.
 - Never change BingeLog statuses automatically.
@@ -63,7 +63,7 @@ Implementation notes:
 2. BingeLog-owned watchlist, status, ratings, and diary.
 3. MDBList ratings and curated-list enrichment.
 4. Jellyfin connection, library import, and watched-state comparison.
-5. Explicitly confirmed one-way Jellyfin → BingeLog watched-state updates; consider two-way sync and live scrobbling only after conflict handling is designed and tested.
+5. Explicitly confirmed one-way Jellyfin → BingeLog watched-state updates; keep two-way sync and live scrobbling out of scope until conflict handling is designed and tested.
 
 ## References
 
