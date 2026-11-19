@@ -62,6 +62,60 @@ final class JellyfinLibraryRequestTests: XCTestCase {
         XCTAssertEqual(MockJellyfinURLProtocol.capturedStartIndexes, [0])
     }
 
+    func testAuthenticateSendsCredentialsAndDecodesUserAndToken() async throws {
+        MockJellyfinURLProtocol.install { request in
+            guard request.httpMethod == "POST",
+                  request.url?.path == "/jellyfin/Users/AuthenticateByName",
+                  request.value(forHTTPHeaderField: "Content-Type") == "application/json",
+                  request.value(forHTTPHeaderField: "Authorization")?.contains("Client=\"BingeLog\"") == true,
+                  let body = request.httpBody,
+                  let object = try? JSONSerialization.jsonObject(with: body) as? [String: String],
+                  object["Username"] == "niklas",
+                  object["Pw"] == "test-password" else {
+                return (400, Data())
+            }
+
+            let json = """
+            {
+              "AccessToken": "returned-token",
+              "User": { "Id": "user-123", "Name": "Niklas" }
+            }
+            """
+            return (200, Data(json.utf8))
+        }
+
+        let service = JellyfinService(session: makeSession())
+        let result = try await service.authenticate(
+            serverAddress: "https://media.example.com/jellyfin/",
+            username: "niklas",
+            password: "test-password"
+        )
+
+        XCTAssertEqual(result.accessToken, "returned-token")
+        XCTAssertEqual(result.user.id, "user-123")
+        XCTAssertEqual(result.user.name, "Niklas")
+    }
+
+    func testAuthenticateRejectsInvalidCredentialsFromServer() async {
+        MockJellyfinURLProtocol.install { _ in (401, Data()) }
+        let service = JellyfinService(session: makeSession())
+
+        do {
+            _ = try await service.authenticate(
+                serverAddress: "https://media.example.com",
+                username: "niklas",
+                password: "wrong-password"
+            )
+            XCTFail("Expected an authentication error")
+        } catch let error as JellyfinError {
+            guard case .httpStatus(401) = error else {
+                return XCTFail("Unexpected Jellyfin error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
     func testLibraryItemsThrowsForHTTPError() async {
         MockJellyfinURLProtocol.install { _ in (401, Data()) }
         let service = JellyfinService(session: makeSession())
