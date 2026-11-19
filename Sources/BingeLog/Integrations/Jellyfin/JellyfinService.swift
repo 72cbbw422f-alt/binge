@@ -164,9 +164,16 @@ struct JellyfinService {
     func libraryItems() async throws -> [JellyfinLibraryItem] {
         guard let server = SecureTokenStore.read(service: "BingeLog.Jellyfin.Server"),
               let token = SecureTokenStore.read(service: "BingeLog.Jellyfin.Token"),
-              let userID = SecureTokenStore.read(service: "BingeLog.Jellyfin.UserID"),
-              let baseURL = normalizedServerURL(server) else {
+              let userID = SecureTokenStore.read(service: "BingeLog.Jellyfin.UserID") else {
             throw JellyfinError.missingConnection
+        }
+        return try await libraryItems(server: server, userID: userID, token: token)
+    }
+
+    /// Internal overload keeps the HTTP pagination flow testable without Keychain state.
+    func libraryItems(server: String, userID: String, token: String) async throws -> [JellyfinLibraryItem] {
+        guard let baseURL = normalizedServerURL(server) else {
+            throw JellyfinError.invalidServerAddress
         }
 
         let pageSize = 200
