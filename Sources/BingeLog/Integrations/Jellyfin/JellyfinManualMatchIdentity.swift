@@ -25,9 +25,10 @@ enum JellyfinManualMatchIdentity {
         }
 
         components.host = host.lowercased()
-        components.path = components.path.trimmingCharacters(
+        let path = components.path.trimmingCharacters(
             in: CharacterSet(charactersIn: "/")
         )
+        components.path = path.isEmpty ? "" : "/" + path
         components.query = nil
         components.fragment = nil
         return components.string
