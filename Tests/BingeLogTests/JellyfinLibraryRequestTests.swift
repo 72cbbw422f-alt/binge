@@ -63,9 +63,7 @@ final class JellyfinLibraryRequestTests: XCTestCase {
     }
 
     func testAuthenticateSendsCredentialsAndDecodesUserAndToken() async throws {
-        var capturedRequest: URLRequest?
-        MockJellyfinURLProtocol.install { request in
-            capturedRequest = request
+        MockJellyfinURLProtocol.install { _ in
             let json = """
             {
               "AccessToken": "returned-token",
@@ -86,12 +84,12 @@ final class JellyfinLibraryRequestTests: XCTestCase {
         XCTAssertEqual(result.user.id, "user-123")
         XCTAssertEqual(result.user.name, "Niklas")
 
-        let request = try XCTUnwrap(capturedRequest)
+        let request = try XCTUnwrap(MockJellyfinURLProtocol.capturedRequest)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.url?.path, "/jellyfin/Users/AuthenticateByName")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
         XCTAssertTrue(request.value(forHTTPHeaderField: "Authorization")?.contains("Client=\"BingeLog\"") == true)
-        let body = try XCTUnwrap(request.httpBody)
+        let body = try XCTUnwrap(MockJellyfinURLProtocol.capturedRequestBody)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
         XCTAssertEqual(object["Username"], "niklas")
         XCTAssertEqual(object["Pw"], "test-password")
@@ -150,6 +148,20 @@ private final class MockJellyfinURLProtocol: URLProtocol {
     private static let lock = NSLock()
     private static var storedHandler: Handler?
     private static var storedStartIndexes: [Int] = []
+    private static var storedRequest: URLRequest?
+    private static var storedRequestBody: Data?
+
+    static var capturedRequest: URLRequest? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedRequest
+    }
+
+    static var capturedRequestBody: Data? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedRequestBody
+    }
 
     static var capturedStartIndexes: [Int] {
         lock.lock()
@@ -161,6 +173,8 @@ private final class MockJellyfinURLProtocol: URLProtocol {
         lock.lock()
         storedHandler = handler
         storedStartIndexes = []
+        storedRequest = nil
+        storedRequestBody = nil
         lock.unlock()
     }
 
@@ -168,6 +182,8 @@ private final class MockJellyfinURLProtocol: URLProtocol {
         lock.lock()
         storedHandler = nil
         storedStartIndexes = []
+        storedRequest = nil
+        storedRequestBody = nil
         lock.unlock()
     }
 
@@ -175,8 +191,11 @@ private final class MockJellyfinURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        let bodyData = request.httpBody ?? Self.readBody(request.httpBodyStream)
         Self.lock.lock()
         let handler = Self.storedHandler
+        Self.storedRequest = request
+        Self.storedRequestBody = bodyData
         if let value = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "StartIndex" })?.value.flatMap(Int.init) {
             Self.storedStartIndexes.append(value)
@@ -198,6 +217,20 @@ private final class MockJellyfinURLProtocol: URLProtocol {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private static func readBody(_ stream: InputStream?) -> Data? {
+        guard let stream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count <= 0 { break }
+            data.append(buffer, count: count)
+        }
+        return data.isEmpty ? nil : data
     }
 
     override func stopLoading() {}
