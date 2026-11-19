@@ -6,8 +6,11 @@ struct DiscoverView: View {
     @Query private var savedEntries: [BingeEntry]
     @State private var query = ""
     @State private var results: [TMDBMediaItem] = []
+    @State private var trendingItems: [TMDBMediaItem] = []
     @State private var isLoading = false
+    @State private var isLoadingTrending = false
     @State private var errorMessage: String?
+    @State private var trendingError: String?
     @State private var showTokenSheet = false
     @State private var persistenceError: String?
     private let service = TMDBService()
@@ -47,6 +50,8 @@ struct DiscoverView: View {
 
                 if !hasToken {
                     connectionPrompt
+                } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    trendingSection
                 } else if isLoading {
                     ProgressView("Söker i TMDB…")
                         .tint(BingeTheme.accent)
@@ -55,7 +60,7 @@ struct DiscoverView: View {
                 } else if let errorMessage {
                     ContentUnavailableView("Sökningen misslyckades", systemImage: "wifi.exclamationmark", description: Text(errorMessage))
                         .foregroundStyle(.white)
-                } else if !query.isEmpty && results.isEmpty {
+                } else if results.isEmpty {
                     ContentUnavailableView.search(text: query)
                         .foregroundStyle(.white)
                 } else {
@@ -65,22 +70,6 @@ struct DiscoverView: View {
                         }
                     }
                 }
-
-                if hasToken && query.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("UPPTÄCK DIN NÄSTA FAVORIT")
-                            .font(.caption.weight(.bold))
-                            .tracking(1.3)
-                            .foregroundStyle(BingeTheme.accent)
-                        Text("Sök bland filmer och serier från hela världen.")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.white)
-                        Text("Resultaten hämtas från TMDB med svenska titlar och metadata där det finns tillgängligt.")
-                            .font(.subheadline)
-                            .foregroundStyle(BingeTheme.secondaryText)
-                    }
-                    .padding(.top, 8)
-                }
             }
             .padding(BingeTheme.screenPadding)
         }
@@ -88,7 +77,32 @@ struct DiscoverView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task(id: query) {
             let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard term.count >= 2, hasToken else {
+            guard hasToken else {
+                results = []
+                errorMessage = nil
+                return
+            }
+
+            if term.isEmpty {
+                results = []
+                errorMessage = nil
+                guard trendingItems.isEmpty else { return }
+                isLoadingTrending = true
+                defer { isLoadingTrending = false }
+                do {
+                    let response = try await service.trending()
+                    try Task.checkCancellation()
+                    trendingItems = response.results.filter { $0.mediaType == .movie || $0.mediaType == .tv }
+                    trendingError = nil
+                } catch is CancellationError {
+                    return
+                } catch {
+                    trendingError = error.localizedDescription
+                }
+                return
+            }
+
+            guard term.count >= 2 else {
                 results = []
                 errorMessage = nil
                 return
@@ -115,6 +129,44 @@ struct DiscoverView: View {
         } message: {
             Text(persistenceError ?? "Försök igen.")
         }
+    }
+
+    private var trendingSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("TRENDAR JUST NU")
+                    .font(.caption.weight(.bold))
+                    .tracking(1.3)
+                    .foregroundStyle(BingeTheme.accent)
+                Text("Populärt bland film- och serieälskare")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+            }
+
+            if isLoadingTrending {
+                ProgressView("Hämtar populära titlar…")
+                    .tint(BingeTheme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+            } else if let trendingError {
+                ContentUnavailableView(
+                    "Kunde inte hämta topplistan",
+                    systemImage: "wifi.exclamationmark",
+                    description: Text(trendingError)
+                )
+                .foregroundStyle(.white)
+                Button("Försök igen") { trendingItems = []; trendingError = nil }
+                    .buttonStyle(.bordered)
+                    .tint(BingeTheme.accent)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(trendingItems) { item in
+                        resultRow(item)
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
     }
 
     private var header: some View {
