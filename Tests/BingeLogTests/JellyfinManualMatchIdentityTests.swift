@@ -79,4 +79,47 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
         let second = JellyfinManualMatchIdentity.serverIdentity(for: "https://media.example.com/")
         XCTAssertEqual(first, second)
     }
+
+    func testLibraryItemDecodesTMDBIdentityAndWatchedState() throws {
+        let json = """
+        {
+          "Id": "jellyfin-123",
+          "Name": "Example Film",
+          "Type": "Movie",
+          "ProductionYear": 2024,
+          "ProviderIds": { "Tmdb": "98765" },
+          "UserData": {
+            "Played": true,
+            "PlayCount": 2,
+            "LastPlayedDate": "2026-11-18T20:00:00.0000000Z"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let item = try JSONDecoder().decode(JellyfinLibraryItem.self, from: json)
+
+        XCTAssertEqual(item.id, "jellyfin-123")
+        XCTAssertEqual(item.name, "Example Film")
+        XCTAssertEqual(item.mediaKind, .movie)
+        XCTAssertEqual(item.tmdbID, 98765)
+        XCTAssertEqual(item.productionYear, 2024)
+        XCTAssertEqual(item.userData?.played, true)
+        XCTAssertEqual(item.userData?.playCount, 2)
+    }
+
+    func testLibraryItemWithoutTMDBIDRemainsEligibleForManualMatch() throws {
+        let json = """
+        {
+          "Id": "jellyfin-456",
+          "Name": "Unmatched Series",
+          "Type": "Series"
+        }
+        """.data(using: .utf8)!
+
+        let item = try JSONDecoder().decode(JellyfinLibraryItem.self, from: json)
+
+        XCTAssertEqual(item.mediaKind, .tv)
+        XCTAssertNil(item.tmdbID)
+        XCTAssertNil(item.userData?.played)
+    }
 }
