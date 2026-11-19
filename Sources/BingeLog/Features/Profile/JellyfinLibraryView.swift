@@ -213,22 +213,23 @@ struct JellyfinLibraryView: View {
                                 .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                         }
 
+                        let savedLookup = savedEntryLookup
                         LazyVStack(spacing: 10) {
                             ForEach(filteredItems) { item in
-                            HStack(spacing: 10) {
-                                Image(systemName: item.mediaKind == .movie ? "film" : "tv")
-                                    .foregroundStyle(BingeTheme.accent)
-                                    .frame(width: 30)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(item.name).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                                    Text([item.mediaKind?.title, item.productionYear.map(String.init)].compactMap { $0 }.joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                HStack(spacing: 10) {
+                                    Image(systemName: item.mediaKind == .movie ? "film" : "tv")
+                                        .foregroundStyle(BingeTheme.accent)
+                                        .frame(width: 30)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(item.name).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                                        Text([item.mediaKind?.title, item.productionYear.map(String.init)].compactMap { $0 }.joined(separator: " · "))
+                                            .font(.caption).foregroundStyle(BingeTheme.secondaryText)
+                                    }
+                                    Spacer()
+                                    libraryItemStatus(item, saved: savedLookup)
                                 }
-                                Spacer()
-                                libraryItemStatus(item)
-                            }
-                            .padding(11)
-                            .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                                .padding(11)
+                                .background(BingeTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                             }
                         }
                     }
@@ -371,14 +372,17 @@ struct JellyfinLibraryView: View {
     }
 
     @ViewBuilder
-    private func libraryItemStatus(_ item: JellyfinLibraryItem) -> some View {
+    private func libraryItemStatus(
+        _ item: JellyfinLibraryItem,
+        saved: [String: BingeEntry]
+    ) -> some View {
         if resolvedTMDBID(for: item) == nil {
             Label("Matchas", systemImage: "questionmark.circle")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(BingeTheme.secondaryText)
         } else if let id = resolvedTMDBID(for: item), let kind = item.mediaKind,
-                  let saved = savedEntryLookup[entryKey(kind: kind, id: id)] {
-            Label(saved.status == .completed ? "Sett klart" : "Finns sparad", systemImage: "checkmark.circle.fill")
+                  let entry = saved[entryKey(kind: kind, id: id)] {
+            Label(entry.status == .completed ? "Sett klart" : "Finns sparad", systemImage: "checkmark.circle.fill")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(BingeTheme.accent)
         } else if item.userData?.played == true {
