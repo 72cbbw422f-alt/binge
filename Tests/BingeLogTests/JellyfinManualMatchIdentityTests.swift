@@ -61,4 +61,22 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
             )
         )
     }
+
+    func testServerIdentityPreservesPortAndNormalizesPathAndQuery() {
+        XCTAssertEqual(
+            JellyfinManualMatchIdentity.serverIdentity(for: "HTTP://MEDIA.EXAMPLE.COM:8096/library///?api_key=secret"),
+            "http://media.example.com:8096/library"
+        )
+    }
+
+    func testServerIdentityRejectsUnsupportedSchemesAndEmbeddedCredentials() {
+        XCTAssertNil(JellyfinManualMatchIdentity.serverIdentity(for: "ftp://media.example.com"))
+        XCTAssertNil(JellyfinManualMatchIdentity.serverIdentity(for: "https://user:password@media.example.com"))
+    }
+
+    func testServerIdentityTreatsSchemeAndHostCaseAsEquivalent() {
+        let first = JellyfinManualMatchIdentity.serverIdentity(for: "HTTPS://Media.Example.com")
+        let second = JellyfinManualMatchIdentity.serverIdentity(for: "https://media.example.com/")
+        XCTAssertEqual(first, second)
+    }
 }
