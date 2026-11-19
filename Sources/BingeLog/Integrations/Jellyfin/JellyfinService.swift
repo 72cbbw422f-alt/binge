@@ -55,6 +55,22 @@ struct JellyfinLibraryResponse: Decodable {
     }
 }
 
+/// Deterministic pagination rules shared by the service and unit tests.
+enum JellyfinLibraryPagination {
+    static func nextStartIndex(
+        currentStartIndex: Int,
+        receivedCount: Int,
+        totalRecordCount: Int?,
+        pageSize: Int
+    ) -> Int? {
+        guard receivedCount > 0 else { return nil }
+        let nextIndex = currentStartIndex + receivedCount
+        if let totalRecordCount, nextIndex >= totalRecordCount { return nil }
+        if totalRecordCount == nil, receivedCount < pageSize { return nil }
+        return nextIndex
+    }
+}
+
 struct JellyfinUserData: Decodable {
     let played: Bool?
     let playCount: Int?
@@ -189,14 +205,15 @@ struct JellyfinService {
             }
 
             allItems.append(contentsOf: page.items)
-            if page.items.isEmpty { break }
-            startIndex += page.items.count
-
-            if let total = page.totalRecordCount {
-                if startIndex >= total { break }
-            } else if page.items.count < pageSize {
+            guard let nextIndex = JellyfinLibraryPagination.nextStartIndex(
+                currentStartIndex: startIndex,
+                receivedCount: page.items.count,
+                totalRecordCount: page.totalRecordCount,
+                pageSize: pageSize
+            ) else {
                 break
             }
+            startIndex = nextIndex
         }
 
         return allItems
