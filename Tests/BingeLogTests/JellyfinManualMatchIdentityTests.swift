@@ -45,6 +45,18 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
         XCTAssertEqual(migrated?["https://other.example.com|same-item-id"], 654)
     }
 
+    func testMigrationSkipsNonPositiveLegacyTMDBIDs() {
+        let migrated = JellyfinManualMatchIdentity.migratedMatches(
+            legacy: ["valid": 123, "zero": 0, "negative": -5],
+            existing: [:],
+            server: "https://media.example.com"
+        )
+
+        XCTAssertEqual(migrated?["https://media.example.com|valid"], 123)
+        XCTAssertNil(migrated?["https://media.example.com|zero"])
+        XCTAssertNil(migrated?["https://media.example.com|negative"])
+    }
+
     func testMigrationRejectsEmptyLegacyDataOrInvalidServer() {
         XCTAssertNil(
             JellyfinManualMatchIdentity.migratedMatches(
@@ -105,6 +117,22 @@ final class JellyfinManualMatchIdentityTests: XCTestCase {
         XCTAssertEqual(item.productionYear, 2024)
         XCTAssertEqual(item.userData?.played, true)
         XCTAssertEqual(item.userData?.playCount, 2)
+    }
+
+    func testLibraryItemRejectsMissingNonNumericZeroAndNegativeTMDBIDs() throws {
+        for rawID in ["not-a-number", "0", "-12", ""] {
+            let json = """
+            {
+              "Id": "jellyfin-invalid-\(rawID)",
+              "Name": "Invalid TMDB",
+              "Type": "Movie",
+              "ProviderIds": { "Tmdb": "\(rawID)" }
+            }
+            """.data(using: .utf8)!
+
+            let item = try JSONDecoder().decode(JellyfinLibraryItem.self, from: json)
+            XCTAssertNil(item.tmdbID, "Expected TMDB ID '\(rawID)' to be rejected")
+        }
     }
 
     func testLibraryItemWithoutTMDBIDRemainsEligibleForManualMatch() throws {
