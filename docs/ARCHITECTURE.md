@@ -49,3 +49,10 @@ Native SwiftUI, iOS 17+, SwiftData persistence, and an XcodeGen project definiti
 - Optional Jellyfin playback/watch-state synchronization with clear conflict rules
 - Cloud synchronization and multi-device sharing
 - Notifications and release reminders
+
+## SwiftData transaction boundaries
+- Multi-record user actions must be committed as one logical transaction. For example, changing a title's status and inserting its activity event, or changing episode progress and inserting its watch event, must succeed or fail together.
+- Feature-level mutations in the detail and collection screens use a dedicated `ModelContext` created from the app's `ModelContainer`. Autosave is disabled for that transaction context; the operation explicitly saves once all related mutations are ready.
+- A failed transaction rolls back only its own context. Feature code must not call `rollback()` on the shared environment `ModelContext`, because that can discard unrelated pending edits.
+- Deleting a `BingeEntry` removes only the library membership record. `BingeEpisodeProgress` and `BingeWatchEvent` are retained so a title can be re-added without losing the user's history.
+- SwiftData `@Query` remains the read path for views; mutations are fetched by stable media identity inside the transaction context.
