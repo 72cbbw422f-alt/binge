@@ -94,7 +94,7 @@ struct MediaDetailView: View {
                 }
                 castSection
                 trailerSection
-                if let errorMessage { errorNotice }
+                if errorMessage != nil { errorNotice }
                 attribution
             }
             .padding(.bottom, 32)
