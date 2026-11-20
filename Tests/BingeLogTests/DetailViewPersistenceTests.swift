@@ -51,7 +51,8 @@ final class DetailViewPersistenceTests: XCTestCase {
 
     func testExistingViewContextCanFetchCommittedTransactionChanges() throws {
         let container = try makeContainer()
-        let viewContext = ModelContext(container)
+        let viewContext = container.mainContext
+        viewContext.autosaveEnabled = false
         XCTAssertTrue(try viewContext.fetch(FetchDescriptor<BingeEntry>()).isEmpty)
 
         try DetailViewPersistence.perform(in: container) { context in
