@@ -1,3 +1,4 @@
+import Foundation
 import SwiftData
 
 /// Applies an explicitly confirmed Jellyfin watched state to one local title.
