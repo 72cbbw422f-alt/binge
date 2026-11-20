@@ -441,6 +441,9 @@ struct JellyfinLibraryView: View {
 
                 target.status = .completed
                 didUpdate = true
+                if target.startedAt == nil {
+                    target.startedAt = target.addedAt
+                }
                 target.completedAt = .now
                 context.insert(BingeWatchEvent(
                     type: .statusChanged,
