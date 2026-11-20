@@ -60,7 +60,9 @@ struct JellyfinLibraryView: View {
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
 
     private func resolvedTMDBID(for item: JellyfinLibraryItem) -> Int? {
-        item.tmdbID ?? manualMatches[manualMatchKey(for: item)]
+        guard let identifier = item.tmdbID ?? manualMatches[manualMatchKey(for: item)],
+              identifier > 0 else { return nil }
+        return identifier
     }
 
     // Jellyfin item IDs are only unique within a server. Scope manual matches to
