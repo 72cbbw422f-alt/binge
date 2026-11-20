@@ -427,17 +427,20 @@ struct JellyfinLibraryView: View {
               entry.status != .completed else { return }
 
         let title = entry.title
+        let mediaKindRaw = kind.rawValue
+        var didUpdate = false
         do {
             try DetailViewPersistence.perform(in: modelContext.container) { context in
                 let descriptor = FetchDescriptor<BingeEntry>(
                     predicate: #Predicate {
-                        $0.tmdbID == id && $0.mediaKindRaw == kind.rawValue
+                        $0.tmdbID == id && $0.mediaKindRaw == mediaKindRaw
                     }
                 )
                 guard let target = try context.fetch(descriptor).first,
                       target.status != .completed else { return }
 
                 target.status = .completed
+                didUpdate = true
                 target.completedAt = .now
                 context.insert(BingeWatchEvent(
                     type: .statusChanged,
@@ -447,7 +450,9 @@ struct JellyfinLibraryView: View {
                     detail: "Markerad som Sett klart via Jellyfin"
                 ))
             }
-            statusMessage = "\(title) markerades som Sett klart i BingeLog. Ditt betyg är oförändrat."
+            if didUpdate {
+                statusMessage = "\(title) markerades som Sett klart i BingeLog. Ditt betyg är oförändrat."
+            }
             errorMessage = nil
         } catch {
             errorMessage = "Statusen kunde inte sparas: \(error.localizedDescription)"
