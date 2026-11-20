@@ -52,6 +52,7 @@ final class DetailViewPersistenceTests: XCTestCase {
     func testFailedTransactionRollsBackOnlyItsOwnChanges() throws {
         let container = try makeContainer()
         let mainContext = ModelContext(container)
+        mainContext.autosaveEnabled = false
         let pendingEntry = BingeEntry(
             tmdbID: 200,
             mediaKind: .movie,
