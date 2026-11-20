@@ -23,7 +23,9 @@ enum MDBListImportPersistence {
 
             for item in items {
                 guard let tmdbID = item.tmdbID,
+                      tmdbID > 0,
                       let title = item.title,
+                      !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       let rawType = item.importMediaType else {
                     skipped += 1
                     continue
