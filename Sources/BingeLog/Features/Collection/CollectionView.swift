@@ -136,8 +136,7 @@ struct CollectionView: View {
         ) {
             Button("Ta bort", role: .destructive) {
                 if let entryPendingDeletion {
-                    modelContext.delete(entryPendingDeletion)
-                    saveChanges()
+                    deleteEntry(entryPendingDeletion)
                 }
                 entryPendingDeletion = nil
             }
@@ -357,6 +356,27 @@ struct CollectionView: View {
             }
         }
         .frame(width: 118, alignment: .leading)
+    }
+
+    private func deleteEntry(_ entry: BingeEntry) {
+        let entryID = entry.tmdbID
+        let mediaKindRaw = entry.mediaKind.rawValue
+        do {
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let descriptor = FetchDescriptor<BingeEntry>(
+                    predicate: #Predicate {
+                        $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                    }
+                )
+                guard let target = try context.fetch(descriptor).first else {
+                    throw DetailViewPersistence.Failure.entryNotFound
+                }
+                context.delete(target)
+            }
+            persistenceError = nil
+        } catch {
+            persistenceError = error.localizedDescription
+        }
     }
 
     private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
