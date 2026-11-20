@@ -90,14 +90,23 @@ final class MDBListImportPersistenceTests: XCTestCase {
         let unsupportedType = try decodeItem("""
         { "id": 2, "tmdbid": 500, "mediatype": "person", "title": "Unsupported type" }
         """)
+        let zeroID = try decodeItem("""
+        { "id": 3, "tmdbid": 0, "mediatype": "movie", "title": "Zero TMDB ID" }
+        """)
+        let negativeID = try decodeItem("""
+        { "id": 4, "tmdbid": -12, "mediatype": "show", "title": "Negative TMDB ID" }
+        """)
+        let blankTitle = try decodeItem("""
+        { "id": 5, "tmdbid": 501, "mediatype": "movie", "title": "   " }
+        """)
 
         let summary = try MDBListImportPersistence.importItems(
-            [missingID, unsupportedType],
+            [missingID, unsupportedType, zeroID, negativeID, blankTitle],
             into: container
         )
 
         XCTAssertEqual(summary.added, 0)
-        XCTAssertEqual(summary.skipped, 2)
+        XCTAssertEqual(summary.skipped, 5)
         let verificationContext = ModelContext(container)
         XCTAssertTrue(try verificationContext.fetch(FetchDescriptor<BingeEntry>()).isEmpty)
     }
