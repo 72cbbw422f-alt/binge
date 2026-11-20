@@ -445,11 +445,14 @@ struct JellyfinLibraryView: View {
     @MainActor
     private func importMatchedItem(_ jellyfinItem: JellyfinLibraryItem, match: TMDBMediaItem) -> Bool {
         guard let kind = jellyfinItem.mediaKind,
+              match.id > 0,
               let mediaType = match.mediaType,
-              (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv),
-              !savedEntries.contains(where: { $0.tmdbID == match.id && $0.mediaKind == kind }) else {
-            errorMessage = "Titeln kunde inte matchas eller finns redan i BingeLog."
+              (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv) else {
+            errorMessage = "Titeln kunde inte matchas. Kontrollera mediatyp och TMDB-ID."
             return false
+        }
+        let alreadySaved = savedEntries.contains {
+            $0.tmdbID == match.id && $0.mediaKind == kind
         }
         let entry = BingeEntry(
             tmdbID: match.id,
@@ -464,7 +467,7 @@ struct JellyfinLibraryView: View {
             status: .planned
         )
         var didInsert = false
-        do {
+        let persistEntry: () throws -> Void = {
             try DetailViewPersistence.perform(in: modelContext.container) { context in
                 let entryID = entry.tmdbID
                 let mediaKindRaw = entry.mediaKind.rawValue
@@ -477,15 +480,28 @@ struct JellyfinLibraryView: View {
                 context.insert(entry)
                 didInsert = true
             }
-            guard didInsert else {
-                errorMessage = "Titeln finns redan i BingeLog."
-                return false
-            }
+        }
+
+        do {
             if jellyfinItem.tmdbID == nil {
-                manualMatches[manualMatchKey(for: jellyfinItem)] = match.id
-                UserDefaults.standard.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
+                let key = manualMatchKey(for: jellyfinItem)
+                try JellyfinManualMatchPersistence.save(
+                    tmdbID: match.id,
+                    for: key,
+                    in: .standard,
+                    persist: persistEntry
+                )
+                manualMatches[key] = match.id
+            } else {
+                try persistEntry()
             }
-            statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
+
+            let linkedExistingEntry = alreadySaved || !didInsert
+            if linkedExistingEntry {
+                statusMessage = "\(match.displayTitle) kopplades till den befintliga titeln i BingeLog."
+            } else {
+                statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
+            }
             errorMessage = nil
             return true
         } catch {
@@ -634,7 +650,7 @@ private struct JellyfinTMDBMatchSheet: View {
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Matcha och lägg till") {
+                Button("Bekräfta matchning") {
                     if let selectedMatch {
                         onSelect(selectedMatch)
                     }
