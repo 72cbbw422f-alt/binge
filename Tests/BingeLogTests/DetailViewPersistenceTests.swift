@@ -118,6 +118,47 @@ final class DetailViewPersistenceTests: XCTestCase {
         XCTAssertEqual(events.count, 1)
     }
 
+    func testDeletingEntryKeepsEpisodeProgressAndWatchHistory() throws {
+        let container = try makeContainer()
+        let seedContext = ModelContext(container)
+        seedContext.insert(BingeEntry(
+            tmdbID: 500,
+            mediaKind: .tv,
+            title: "Sparad serie"
+        ))
+        let progress = BingeEpisodeProgress(
+            seriesTMDBID: 500,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            episodeName: "Pilot"
+        )
+        progress.watchedAt = .now
+        seedContext.insert(progress)
+        seedContext.insert(BingeWatchEvent(
+            type: .episodeWatched,
+            tmdbID: 500,
+            mediaKind: .tv,
+            title: "Sparad serie",
+            detail: "S1 · A1 – Pilot"
+        ))
+        try seedContext.save()
+
+        try DetailViewPersistence.perform(in: container) { context in
+            let descriptor = FetchDescriptor<BingeEntry>(
+                predicate: #Predicate { $0.tmdbID == 500 && $0.mediaKindRaw == "tv" }
+            )
+            guard let entry = try context.fetch(descriptor).first else {
+                throw DetailViewPersistence.Failure.entryNotFound
+            }
+            context.delete(entry)
+        }
+
+        let verificationContext = ModelContext(container)
+        XCTAssertTrue(try verificationContext.fetch(FetchDescriptor<BingeEntry>()).isEmpty)
+        XCTAssertEqual(try verificationContext.fetch(FetchDescriptor<BingeEpisodeProgress>()).count, 1)
+        XCTAssertEqual(try verificationContext.fetch(FetchDescriptor<BingeWatchEvent>()).count, 1)
+    }
+
     private func makeContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
