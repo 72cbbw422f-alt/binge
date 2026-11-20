@@ -190,6 +190,14 @@ struct MediaDetailView: View {
                         status: .planned
                     )
                     performPersistence { context in
+                        let entryID = entry.tmdbID
+                        let mediaKindRaw = entry.mediaKind.rawValue
+                        let descriptor = FetchDescriptor<BingeEntry>(
+                            predicate: #Predicate {
+                                $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                            }
+                        )
+                        guard try context.fetch(descriptor).isEmpty else { return }
                         context.insert(entry)
                     }
                 } label: {
