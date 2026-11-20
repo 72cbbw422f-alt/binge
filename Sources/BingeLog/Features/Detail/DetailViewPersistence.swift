@@ -1,3 +1,4 @@
+import Foundation
 import SwiftData
 
 /// Runs one detail-screen mutation in its own context so a failed save
