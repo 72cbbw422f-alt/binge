@@ -136,7 +136,7 @@ struct JellyfinLibraryView: View {
                         .foregroundStyle(BingeTheme.accent)
                     Text("Ditt bibliotek")
                         .font(.largeTitle.bold()).foregroundStyle(.white)
-                    Text("Hämta filmer och serier från din mediaserver. Se även vilka titlar Jellyfin markerat som sedda. Bara titlar med TMDB-ID kan matchas säkert mot BingeLog.")
+                    Text("Hämta filmer och serier från din mediaserver. Se även vilka titlar Jellyfin markerat som sedda. Titlar kopplas till BingeLog via TMDB-ID eller en manuellt bekräftad TMDB-matchning.")
                         .font(.subheadline).foregroundStyle(BingeTheme.secondaryText)
                 }
 
