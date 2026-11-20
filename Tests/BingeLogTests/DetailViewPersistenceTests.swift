@@ -49,6 +49,24 @@ final class DetailViewPersistenceTests: XCTestCase {
         XCTAssertEqual(events.first?.eventType, .episodeWatched)
     }
 
+    func testExistingViewContextCanFetchCommittedTransactionChanges() throws {
+        let container = try makeContainer()
+        let viewContext = ModelContext(container)
+        XCTAssertTrue(try viewContext.fetch(FetchDescriptor<BingeEntry>()).isEmpty)
+
+        try DetailViewPersistence.perform(in: container) { context in
+            context.insert(BingeEntry(
+                tmdbID: 150,
+                mediaKind: .movie,
+                title: "Ska synas i samlingen"
+            ))
+        }
+
+        let visibleEntries = try viewContext.fetch(FetchDescriptor<BingeEntry>())
+        XCTAssertEqual(visibleEntries.count, 1)
+        XCTAssertEqual(visibleEntries.first?.title, "Ska synas i samlingen")
+    }
+
     func testFailedTransactionRollsBackOnlyItsOwnChanges() throws {
         let container = try makeContainer()
         let mainContext = ModelContext(container)
