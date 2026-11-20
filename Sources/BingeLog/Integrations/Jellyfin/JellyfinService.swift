@@ -103,8 +103,10 @@ struct JellyfinLibraryItem: Decodable, Identifiable {
     }
 
     var tmdbID: Int? {
-        guard let raw = providerIds?["Tmdb"] else { return nil }
-        return Int(raw)
+        guard let raw = providerIds?["Tmdb"],
+              let identifier = Int(raw),
+              identifier > 0 else { return nil }
+        return identifier
     }
 
     var mediaKind: BingeMediaKind? {
