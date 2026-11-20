@@ -189,8 +189,9 @@ struct MediaDetailView: View {
                         tmdbRating: details?.voteAverage,
                         status: .planned
                     )
-                    modelContext.insert(entry)
-                    saveChanges()
+                    performPersistence { context in
+                        context.insert(entry)
+                    }
                 } label: {
                     Label(
                         retainedWatchedEpisodeCount > 0 ? "Lägg tillbaka i samlingen" : "Lägg till i Vill se",
@@ -231,15 +232,17 @@ struct MediaDetailView: View {
                         step: 0.5,
                         onEditingChanged: { isEditing in
                             guard !isEditing else { return }
-                            savedEntry?.userRating = selectedRating == 0 ? nil : selectedRating
-                            saveChanges()
+                            setUserRating(selectedRating == 0 ? nil : selectedRating)
                         }
                     )
                     .tint(Color(hex: 0xF5B94C))
                     HStack {
                         Text("Tryck och dra för att sätta betyg")
                         Spacer()
-                        Button("Nollställ") { selectedRating = 0; savedEntry?.userRating = nil; saveChanges() }
+                        Button("Nollställ") {
+                            selectedRating = 0
+                            setUserRating(nil)
+                        }
                     }
                     .font(.caption2)
                     .foregroundStyle(BingeTheme.secondaryText)
@@ -391,41 +394,44 @@ struct MediaDetailView: View {
         guard episodeUpdatesInFlight.insert(progressKey).inserted else { return }
         defer { episodeUpdatesInFlight.remove(progressKey) }
 
-        // Resolve the current model at tap time instead of relying on a potentially stale row value.
-        let matchingProgress = episodeProgress.filter {
-            $0.seriesTMDBID == id && $0.seasonNumber == episode.seasonNumber && $0.episodeNumber == episode.episodeNumber
-        }
-        if !matchingProgress.isEmpty {
-            let wasWatched = matchingProgress.contains { $0.isWatched }
-            // Keep legacy duplicate rows consistent without deleting any stored progress records.
-            for item in matchingProgress {
-                item.watchedAt = wasWatched ? nil : .now
-            }
-            modelContext.insert(BingeWatchEvent(
-                type: wasWatched ? .episodeUnwatched : .episodeWatched,
-                tmdbID: id,
-                mediaKind: .tv,
-                title: title,
-                detail: "S\(episode.seasonNumber) · A\(episode.episodeNumber) – \(episode.name)"
-            ))
-        } else {
-            let item = BingeEpisodeProgress(
-                seriesTMDBID: id,
-                seasonNumber: episode.seasonNumber,
-                episodeNumber: episode.episodeNumber,
-                episodeName: episode.name
+        performPersistence { context in
+            let seriesID = id
+            let seasonNumber = episode.seasonNumber
+            let episodeNumber = episode.episodeNumber
+            let descriptor = FetchDescriptor<BingeEpisodeProgress>(
+                predicate: #Predicate {
+                    $0.seriesTMDBID == seriesID &&
+                    $0.seasonNumber == seasonNumber &&
+                    $0.episodeNumber == episodeNumber
+                }
             )
-            item.watchedAt = .now
-            modelContext.insert(item)
-            modelContext.insert(BingeWatchEvent(
-                type: .episodeWatched,
-                tmdbID: id,
+            let matchingProgress = try context.fetch(descriptor)
+            let wasWatched = matchingProgress.contains { $0.isWatched }
+
+            if !matchingProgress.isEmpty {
+                // Keep legacy duplicate rows consistent without deleting stored progress records.
+                for item in matchingProgress {
+                    item.watchedAt = wasWatched ? nil : .now
+                }
+            } else {
+                let item = BingeEpisodeProgress(
+                    seriesTMDBID: seriesID,
+                    seasonNumber: seasonNumber,
+                    episodeNumber: episodeNumber,
+                    episodeName: episode.name
+                )
+                item.watchedAt = .now
+                context.insert(item)
+            }
+
+            context.insert(BingeWatchEvent(
+                type: wasWatched ? .episodeUnwatched : .episodeWatched,
+                tmdbID: seriesID,
                 mediaKind: .tv,
                 title: title,
-                detail: "S\(episode.seasonNumber) · A\(episode.episodeNumber) – \(episode.name)"
+                detail: "S\(seasonNumber) · A\(episodeNumber) – \(episode.name)"
             ))
         }
-        saveChanges()
     }
 
     private var castSection: some View {
@@ -523,35 +529,63 @@ struct MediaDetailView: View {
     }
 
     private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
-        let previousStatus = entry.status
-        guard previousStatus != status else { return }
-        modelContext.insert(BingeWatchEvent(
-            type: .statusChanged,
-            tmdbID: entry.tmdbID,
-            mediaKind: entry.mediaKind,
-            title: entry.title,
-            detail: "\(previousStatus.title) → \(status.title)"
-        ))
-        entry.status = status
-        switch status {
-        case .watching:
-            if entry.startedAt == nil { entry.startedAt = .now }
-            entry.completedAt = nil
-        case .completed:
-            entry.completedAt = .now
-            if entry.startedAt == nil { entry.startedAt = entry.addedAt }
-        case .planned, .onHold, .dropped:
-            entry.completedAt = nil
+        let entryID = entry.tmdbID
+        let mediaKindRaw = entry.mediaKind.rawValue
+        performPersistence { context in
+            let descriptor = FetchDescriptor<BingeEntry>(
+                predicate: #Predicate {
+                    $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                }
+            )
+            guard let target = try context.fetch(descriptor).first else {
+                throw DetailPersistenceError.entryNotFound
+            }
+
+            let previousStatus = target.status
+            guard previousStatus != status else { return }
+            context.insert(BingeWatchEvent(
+                type: .statusChanged,
+                tmdbID: target.tmdbID,
+                mediaKind: target.mediaKind,
+                title: target.title,
+                detail: "\(previousStatus.title) → \(status.title)"
+            ))
+            target.status = status
+            switch status {
+            case .watching:
+                if target.startedAt == nil { target.startedAt = .now }
+                target.completedAt = nil
+            case .completed:
+                target.completedAt = .now
+                if target.startedAt == nil { target.startedAt = target.addedAt }
+            case .planned, .onHold, .dropped:
+                target.completedAt = nil
+            }
         }
-        saveChanges()
     }
 
-    private func saveChanges() {
+    private func setUserRating(_ rating: Double?) {
+        let entryID = id
+        let mediaKindRaw = mediaKind.rawValue
+        performPersistence { context in
+            let descriptor = FetchDescriptor<BingeEntry>(
+                predicate: #Predicate {
+                    $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                }
+            )
+            guard let target = try context.fetch(descriptor).first else {
+                throw DetailPersistenceError.entryNotFound
+            }
+            target.userRating = rating
+            target.updatedAt = .now
+        }
+    }
+
+    private func performPersistence(_ operation: (ModelContext) throws -> Void) {
         do {
-            try modelContext.save()
+            try DetailViewPersistence.perform(in: modelContext.container, operation)
             persistenceError = nil
         } catch {
-            modelContext.rollback()
             persistenceError = error.localizedDescription
         }
     }
@@ -579,5 +613,14 @@ struct MediaDetailView: View {
         Text(title)
             .font(.title3.bold())
             .foregroundStyle(.white)
+    }
+}
+
+
+private enum DetailPersistenceError: LocalizedError {
+    case entryNotFound
+
+    var errorDescription: String? {
+        "Titeln finns inte längre i samlingen."
     }
 }
