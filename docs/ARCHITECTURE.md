@@ -13,6 +13,10 @@ BingeLog owns the user's personal data. External services enrich the experience;
 - `Sources/BingeLog/Integrations/Jellyfin/` — Jellyfin server authentication and session service
 - `Sources/BingeLog/Integrations/Security/` — Keychain-backed token storage
 
+## Local data migrations
+
+Persistent model changes must follow [the SwiftData migration policy](LOCAL_DATA_MIGRATIONS.md). No destructive schema changes may be made without an explicit migration plan and upgrade tests against data from the previous released version.
+
 ## Implemented local entities
 - `BingeEntry` — a saved movie or series, its TMDB metadata, personal rating, status, and key status dates
 - `BingeEpisodeProgress` — watched timestamp for a series episode, identified by TMDB series ID, season, and episode
