@@ -50,6 +50,6 @@ The home screen derives watching/planned/completed counts, personal rating insig
 Native SwiftUI, iOS 17+, SwiftData persistence, and an XcodeGen project definition. GitHub Actions builds the app for the iOS Simulator with code signing disabled. A successful simulator build does not produce a distributable IPA. Keep service clients independent of views where practical so integrations can be tested and replaced without rewriting the UI.
 
 ## Planned, not yet implemented
-- Optional Jellyfin playback/watch-state synchronization with clear conflict rules
+- Full Jellyfin playback integration and broader/bidirectional watch-state synchronization. The limited, explicit Jellyfin-to-BingeLog transfer of a confirmed played state is implemented; playback control and write-back to Jellyfin are not.
 - Cloud synchronization and multi-device sharing
 - Notifications and release reminders
