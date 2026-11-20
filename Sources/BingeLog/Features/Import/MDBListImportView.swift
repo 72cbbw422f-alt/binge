@@ -3,7 +3,6 @@ import SwiftUI
 
 struct MDBListImportView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var savedEntries: [BingeEntry]
     @State private var apiKey = SecureTokenStore.read(service: "BingeLog.MDBList") ?? ""
     @State private var lists: [MDBListUserList] = []
     @State private var selectedListID: Int?
@@ -178,55 +177,14 @@ struct MDBListImportView: View {
         defer { isImporting = false }
         errorMessage = nil
         statusMessage = nil
-        var insertedEntries: [BingeEntry] = []
+
         do {
             let items = try await service.listItems(listID: selectedListID, apiKey: apiKey)
-            var added = 0
-            var skipped = 0
-            // Skip duplicates both in SwiftData and within the imported list.
-            var knownKeys = Set(savedEntries.map { "\($0.mediaKind.rawValue)-\($0.tmdbID)" })
-            for item in items {
-                guard let tmdbID = item.tmdbID,
-                      let title = item.title,
-                      let rawType = item.importMediaType else {
-                    skipped += 1
-                    continue
-                }
-                let kind: BingeMediaKind = rawType == "movie" ? .movie : .tv
-                let key = "\(kind.rawValue)-\(tmdbID)"
-                guard knownKeys.insert(key).inserted else {
-                    skipped += 1
-                    continue
-                }
-                let date = item.year.map { String($0) + "-01-01" }
-                let entry = BingeEntry(
-                    tmdbID: tmdbID,
-                    mediaKind: kind,
-                    title: title,
-                    posterPath: normalizedPosterPath(item.poster),
-                    overview: item.overview ?? "",
-                    releaseDate: date,
-                    status: .planned
-                )
-                modelContext.insert(entry)
-                insertedEntries.append(entry)
-                added += 1
-            }
-            try modelContext.save()
-            statusMessage = "Klart! \(added) nya titlar importerades. \(skipped) poster hoppades över och befintliga titlar lämnades orörda."
+            let summary = try MDBListImportPersistence.importItems(items, into: modelContext.container)
+            statusMessage = "Klart! \(summary.added) nya titlar importerades. \(summary.skipped) poster hoppades över och befintliga titlar lämnades orörda."
         } catch {
-            for entry in insertedEntries { modelContext.delete(entry) }
-            modelContext.rollback()
             statusMessage = nil
             errorMessage = "Importen misslyckades och har återställts. Inga nya titlar har lagts till. " + error.localizedDescription
         }
-    }
-
-    private func normalizedPosterPath(_ value: String?) -> String? {
-        guard let value, !value.isEmpty else { return nil }
-        if value.hasPrefix("http"), let url = URL(string: value) {
-            return url.path
-        }
-        return value.hasPrefix("/") ? value : "/" + value
     }
 }
