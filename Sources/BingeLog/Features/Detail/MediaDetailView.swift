@@ -567,7 +567,7 @@ struct MediaDetailView: View {
     private func setUserRating(_ rating: Double?) {
         let entryID = id
         let mediaKindRaw = mediaKind.rawValue
-        performPersistence { context in
+        let saved = performPersistence { context in
             let descriptor = FetchDescriptor<BingeEntry>(
                 predicate: #Predicate {
                     $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
@@ -579,14 +579,20 @@ struct MediaDetailView: View {
             target.userRating = rating
             target.updatedAt = .now
         }
+        if !saved {
+            selectedRating = savedEntry?.userRating ?? 0
+        }
     }
 
-    private func performPersistence(_ operation: (ModelContext) throws -> Void) {
+    @discardableResult
+    private func performPersistence(_ operation: (ModelContext) throws -> Void) -> Bool {
         do {
             try DetailViewPersistence.perform(in: modelContext.container, operation)
             persistenceError = nil
+            return true
         } catch {
             persistenceError = error.localizedDescription
+            return false
         }
     }
 
