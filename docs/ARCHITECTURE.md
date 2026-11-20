@@ -56,3 +56,4 @@ Native SwiftUI, iOS 17+, SwiftData persistence, and an XcodeGen project definiti
 - A failed transaction rolls back only its own context. Feature code must not call `rollback()` on the shared environment `ModelContext`, because that can discard unrelated pending edits.
 - Deleting a `BingeEntry` removes only the library membership record. `BingeEpisodeProgress` and `BingeWatchEvent` are retained so a title can be re-added without losing the user's history.
 - SwiftData `@Query` remains the read path for views; mutations are fetched by stable media identity inside the transaction context.
+- Jellyfin's confirmed played-state transfer is isolated in `JellyfinWatchStatePersistence`. It updates only the matching local title, sets a missing start date to the original added date, preserves an existing start date and personal rating, and writes one activity event in the same transaction. Repeated application is idempotent and does not duplicate events.
