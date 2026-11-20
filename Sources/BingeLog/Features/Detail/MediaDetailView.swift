@@ -538,7 +538,7 @@ struct MediaDetailView: View {
                 }
             )
             guard let target = try context.fetch(descriptor).first else {
-                throw DetailPersistenceError.entryNotFound
+                throw DetailViewPersistence.Failure.entryNotFound
             }
 
             let previousStatus = target.status
@@ -574,7 +574,7 @@ struct MediaDetailView: View {
                 }
             )
             guard let target = try context.fetch(descriptor).first else {
-                throw DetailPersistenceError.entryNotFound
+                throw DetailViewPersistence.Failure.entryNotFound
             }
             target.userRating = rating
             target.updatedAt = .now
@@ -613,14 +613,5 @@ struct MediaDetailView: View {
         Text(title)
             .font(.title3.bold())
             .foregroundStyle(.white)
-    }
-}
-
-
-private enum DetailPersistenceError: LocalizedError {
-    case entryNotFound
-
-    var errorDescription: String? {
-        "Titeln finns inte längre i samlingen."
     }
 }
