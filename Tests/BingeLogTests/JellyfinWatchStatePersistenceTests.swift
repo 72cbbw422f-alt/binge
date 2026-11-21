@@ -88,6 +88,25 @@ final class JellyfinWatchStatePersistenceTests: XCTestCase {
         XCTAssertTrue(try verification.fetch(FetchDescriptor<BingeWatchEvent>()).isEmpty)
     }
 
+    func testNonPositiveTMDBIDsAreRejectedWithoutCreatingEvents() throws {
+        let container = try makeContainer()
+
+        XCTAssertThrowsError(try JellyfinWatchStatePersistence.markCompleted(
+            tmdbID: 0,
+            mediaKind: .movie,
+            in: container
+        ))
+        XCTAssertThrowsError(try JellyfinWatchStatePersistence.markCompleted(
+            tmdbID: -1,
+            mediaKind: .tv,
+            in: container
+        ))
+
+        let verification = ModelContext(container)
+        XCTAssertTrue(try verification.fetch(FetchDescriptor<BingeEntry>()).isEmpty)
+        XCTAssertTrue(try verification.fetch(FetchDescriptor<BingeWatchEvent>()).isEmpty)
+    }
+
     private func makeContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
