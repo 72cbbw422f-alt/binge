@@ -20,14 +20,14 @@ final class JellyfinAuthResponseValidationTests: XCTestCase {
                     username: "niklas",
                     password: "test-password"
                 )
-                XCTFail("Expected invalidResponse for payload: \\(responseBody)")
+                XCTFail("Expected invalidResponse for payload: \(responseBody)")
             } catch let error as JellyfinError {
                 guard case .invalidResponse = error else {
-                    XCTFail("Unexpected Jellyfin error: \\(error)")
+                    XCTFail("Unexpected Jellyfin error: \(error)")
                     continue
                 }
             } catch {
-                XCTFail("Unexpected error: \\(error)")
+                XCTFail("Unexpected error: \(error)")
             }
         }
     }
