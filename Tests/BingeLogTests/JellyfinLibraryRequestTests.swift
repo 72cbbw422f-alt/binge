@@ -95,6 +95,34 @@ final class JellyfinLibraryRequestTests: XCTestCase {
         XCTAssertEqual(object["Pw"], "test-password")
     }
 
+    func testAuthenticateRejectsEmptyAuthenticationFields() async {
+        let invalidResponses = [
+            #"{"AccessToken":"","User":{"Id":"user-123","Name":"Niklas"}}"#,
+            #"{"AccessToken":"token","User":{"Id":"   ","Name":"Niklas"}}"#,
+            #"{"AccessToken":"token","User":{"Id":"user-123","Name":"  "}}"#
+        ]
+
+        for responseBody in invalidResponses {
+            MockJellyfinURLProtocol.install { _ in (200, Data(responseBody.utf8)) }
+            let service = JellyfinService(session: makeSession())
+
+            do {
+                _ = try await service.authenticate(
+                    serverAddress: "https://media.example.com",
+                    username: "niklas",
+                    password: "test-password"
+                )
+                XCTFail("Expected an invalid-response error for: \\(responseBody)")
+            } catch let error as JellyfinError {
+                guard case .invalidResponse = error else {
+                    return XCTFail("Unexpected Jellyfin error: \\(error)")
+                }
+            } catch {
+                XCTFail("Unexpected error: \\(error)")
+            }
+        }
+    }
+
     func testAuthenticateRejectsInvalidCredentialsFromServer() async {
         MockJellyfinURLProtocol.install { _ in (401, Data()) }
         let service = JellyfinService(session: makeSession())
