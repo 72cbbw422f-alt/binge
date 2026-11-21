@@ -155,11 +155,19 @@ struct JellyfinService {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw JellyfinError.invalidResponse }
         guard (200...299).contains(http.statusCode) else { throw JellyfinError.httpStatus(http.statusCode) }
+        let result: JellyfinAuthResult
         do {
-            return try JSONDecoder().decode(JellyfinAuthResult.self, from: data)
+            result = try JSONDecoder().decode(JellyfinAuthResult.self, from: data)
         } catch {
             throw JellyfinError.invalidResponse
         }
+
+        guard !result.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !result.user.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !result.user.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw JellyfinError.invalidResponse
+        }
+        return result
     }
 
 
