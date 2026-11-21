@@ -31,6 +31,27 @@ final class MDBListImportPersistenceTests: XCTestCase {
         XCTAssertTrue(entries.contains { $0.mediaKind == .tv && $0.tmdbID == 100 })
     }
 
+    func testRepeatedImportIsIdempotentAndDoesNotCreateDuplicates() throws {
+        let container = try makeContainer()
+        let item = try decodeItem("""
+        { "id": 1, "tmdbid": 250, "mediatype": "movie", "title": "Repeatable film" }
+        """)
+
+        let first = try MDBListImportPersistence.importItems([item], into: container)
+        let second = try MDBListImportPersistence.importItems([item], into: container)
+
+        XCTAssertEqual(first.added, 1)
+        XCTAssertEqual(first.skipped, 0)
+        XCTAssertEqual(second.added, 0)
+        XCTAssertEqual(second.skipped, 1)
+
+        let verificationContext = ModelContext(container)
+        let entries = try verificationContext.fetch(FetchDescriptor<BingeEntry>())
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.tmdbID, 250)
+        XCTAssertEqual(entries.first?.mediaKind, .movie)
+    }
+
     func testExistingEntryStatusAndPersonalRatingArePreserved() throws {
         let container = try makeContainer()
         let seedContext = ModelContext(container)
