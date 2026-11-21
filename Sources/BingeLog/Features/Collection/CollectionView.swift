@@ -352,7 +352,7 @@ struct CollectionView: View {
                 Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color(hex: 0xF5B94C))
-                    .accessibilityLabel("Ditt betyg: (rating.formatted(.number.precision(.fractionLength(1))) av 10)")
+                    .accessibilityLabel("Ditt betyg: \(rating.formatted(.number.precision(.fractionLength(1)))) av 10")
             }
         }
         .frame(width: 118, alignment: .leading)
