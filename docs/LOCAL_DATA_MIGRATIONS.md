@@ -1,4 +1,4 @@
-# SwiftData – migrationspolicy
+# SwiftData – migreringspolicy
 
 Det här dokumentet beskriver hur BingeLog ska utveckla sin lokala SwiftData-modell utan att förlora användarens bibliotek, betyg eller tittarhistorik.
 
