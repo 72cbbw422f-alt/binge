@@ -4,6 +4,14 @@ import SwiftData
 /// Applies an explicitly confirmed Jellyfin watched state to one local title.
 /// Personal ratings and episode-level progress are deliberately untouched.
 enum JellyfinWatchStatePersistence {
+    enum Failure: LocalizedError {
+        case invalidTMDBID
+
+        var errorDescription: String? {
+            "TMDB-ID måste vara ett positivt heltal."
+        }
+    }
+
     @MainActor
     @discardableResult
     static func markCompleted(
@@ -11,6 +19,8 @@ enum JellyfinWatchStatePersistence {
         mediaKind: BingeMediaKind,
         in container: ModelContainer
     ) throws -> Bool {
+        guard tmdbID > 0 else { throw Failure.invalidTMDBID }
+
         let mediaKindRaw = mediaKind.rawValue
         var didUpdate = false
 
