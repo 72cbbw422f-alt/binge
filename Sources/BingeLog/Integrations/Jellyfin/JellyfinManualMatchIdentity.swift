@@ -51,7 +51,7 @@ enum JellyfinManualMatchIdentity {
         }
 
         var result = existing
-        for (itemID, tmdbID) in legacy {
+        for (itemID, tmdbID) in legacy where tmdbID > 0 {
             let scopedKey = "\(identity)|\(itemID)"
             if result[scopedKey] == nil {
                 result[scopedKey] = tmdbID

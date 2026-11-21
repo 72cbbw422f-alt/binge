@@ -423,12 +423,20 @@ struct DiscoverView: View {
             tmdbRating: item.voteAverage,
             status: .planned
         )
-        modelContext.insert(entry)
+        let entryID = entry.tmdbID
+        let mediaKindRaw = entry.mediaKind.rawValue
         do {
-            try modelContext.save()
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let descriptor = FetchDescriptor<BingeEntry>(
+                    predicate: #Predicate {
+                        $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                    }
+                )
+                guard try context.fetch(descriptor).isEmpty else { return }
+                context.insert(entry)
+            }
             persistenceError = nil
         } catch {
-            modelContext.rollback()
             persistenceError = error.localizedDescription
         }
     }

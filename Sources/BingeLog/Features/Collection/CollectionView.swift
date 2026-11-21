@@ -136,8 +136,7 @@ struct CollectionView: View {
         ) {
             Button("Ta bort", role: .destructive) {
                 if let entryPendingDeletion {
-                    modelContext.delete(entryPendingDeletion)
-                    saveChanges()
+                    deleteEntry(entryPendingDeletion)
                 }
                 entryPendingDeletion = nil
             }
@@ -353,42 +352,70 @@ struct CollectionView: View {
                 Label(rating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color(hex: 0xF5B94C))
-                    .accessibilityLabel("Ditt betyg: (rating.formatted(.number.precision(.fractionLength(1))) av 10)")
+                    .accessibilityLabel("Ditt betyg: \(rating.formatted(.number.precision(.fractionLength(1)))) av 10")
             }
         }
         .frame(width: 118, alignment: .leading)
     }
 
-    private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
-        let previousStatus = entry.status
-        guard previousStatus != status else { return }
-        modelContext.insert(BingeWatchEvent(
-            type: .statusChanged,
-            tmdbID: entry.tmdbID,
-            mediaKind: entry.mediaKind,
-            title: entry.title,
-            detail: "\(previousStatus.title) → \(status.title)"
-        ))
-        entry.status = status
-        switch status {
-        case .watching:
-            if entry.startedAt == nil { entry.startedAt = .now }
-            entry.completedAt = nil
-        case .completed:
-            entry.completedAt = .now
-            if entry.startedAt == nil { entry.startedAt = entry.addedAt }
-        case .planned, .onHold, .dropped:
-            entry.completedAt = nil
-        }
-        saveChanges()
-    }
-
-    private func saveChanges() {
+    private func deleteEntry(_ entry: BingeEntry) {
+        let entryID = entry.tmdbID
+        let mediaKindRaw = entry.mediaKind.rawValue
         do {
-            try modelContext.save()
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let descriptor = FetchDescriptor<BingeEntry>(
+                    predicate: #Predicate {
+                        $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                    }
+                )
+                guard let target = try context.fetch(descriptor).first else {
+                    throw DetailViewPersistence.Failure.entryNotFound
+                }
+                context.delete(target)
+            }
             persistenceError = nil
         } catch {
-            modelContext.rollback()
+            persistenceError = error.localizedDescription
+        }
+    }
+
+    private func updateStatus(_ entry: BingeEntry, to status: BingeWatchStatus) {
+        let entryID = entry.tmdbID
+        let mediaKindRaw = entry.mediaKind.rawValue
+        do {
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let descriptor = FetchDescriptor<BingeEntry>(
+                    predicate: #Predicate {
+                        $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                    }
+                )
+                guard let target = try context.fetch(descriptor).first else {
+                    throw DetailViewPersistence.Failure.entryNotFound
+                }
+
+                let previousStatus = target.status
+                guard previousStatus != status else { return }
+                context.insert(BingeWatchEvent(
+                    type: .statusChanged,
+                    tmdbID: target.tmdbID,
+                    mediaKind: target.mediaKind,
+                    title: target.title,
+                    detail: "\(previousStatus.title) → \(status.title)"
+                ))
+                target.status = status
+                switch status {
+                case .watching:
+                    if target.startedAt == nil { target.startedAt = .now }
+                    target.completedAt = nil
+                case .completed:
+                    target.completedAt = .now
+                    if target.startedAt == nil { target.startedAt = target.addedAt }
+                case .planned, .onHold, .dropped:
+                    target.completedAt = nil
+                }
+            }
+            persistenceError = nil
+        } catch {
             persistenceError = error.localizedDescription
         }
     }

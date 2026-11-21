@@ -60,7 +60,9 @@ struct JellyfinLibraryView: View {
     private var withoutTMDB: Int { itemsWithoutTMDB.count }
 
     private func resolvedTMDBID(for item: JellyfinLibraryItem) -> Int? {
-        item.tmdbID ?? manualMatches[manualMatchKey(for: item)]
+        guard let identifier = item.tmdbID ?? manualMatches[manualMatchKey(for: item)],
+              identifier > 0 else { return nil }
+        return identifier
     }
 
     // Jellyfin item IDs are only unique within a server. Scope manual matches to
@@ -136,7 +138,7 @@ struct JellyfinLibraryView: View {
                         .foregroundStyle(BingeTheme.accent)
                     Text("Ditt bibliotek")
                         .font(.largeTitle.bold()).foregroundStyle(.white)
-                    Text("Hämta filmer och serier från din mediaserver. Se även vilka titlar Jellyfin markerat som sedda. Bara titlar med TMDB-ID kan matchas säkert mot BingeLog.")
+                    Text("Hämta filmer och serier från din mediaserver. Se även vilka titlar Jellyfin markerat som sedda. Titlar kopplas till BingeLog via TMDB-ID eller en manuellt bekräftad TMDB-matchning.")
                         .font(.subheadline).foregroundStyle(BingeTheme.secondaryText)
                 }
 
@@ -426,30 +428,18 @@ struct JellyfinLibraryView: View {
               let entry = savedEntryLookup[entryKey(kind: kind, id: id)],
               entry.status != .completed else { return }
 
-        let previousStatus = entry.status
-        let previousCompletedAt = entry.completedAt
-        let previousUpdatedAt = entry.updatedAt
-        entry.status = .completed
-        entry.completedAt = .now
-        let event = BingeWatchEvent(
-            type: .statusChanged,
-            tmdbID: id,
-            mediaKind: kind,
-            title: entry.title,
-            detail: "Markerad som Sett klart via Jellyfin"
-        )
-        modelContext.insert(event)
-
+        let title = entry.title
         do {
-            try modelContext.save()
-            statusMessage = "\(entry.title) markerades som Sett klart i BingeLog. Ditt betyg är oförändrat."
+            let didUpdate = try JellyfinWatchStatePersistence.markCompleted(
+                tmdbID: id,
+                mediaKind: kind,
+                in: modelContext.container
+            )
+            if didUpdate {
+                statusMessage = "\(title) markerades som Sett klart i BingeLog. Ditt betyg är oförändrat."
+            }
             errorMessage = nil
         } catch {
-            entry.statusRaw = previousStatus.rawValue
-            entry.completedAt = previousCompletedAt
-            entry.updatedAt = previousUpdatedAt
-            modelContext.delete(event)
-            modelContext.rollback()
             errorMessage = "Statusen kunde inte sparas: \(error.localizedDescription)"
         }
     }
@@ -457,11 +447,14 @@ struct JellyfinLibraryView: View {
     @MainActor
     private func importMatchedItem(_ jellyfinItem: JellyfinLibraryItem, match: TMDBMediaItem) -> Bool {
         guard let kind = jellyfinItem.mediaKind,
+              match.id > 0,
               let mediaType = match.mediaType,
-              (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv),
-              !savedEntries.contains(where: { $0.tmdbID == match.id && $0.mediaKind == kind }) else {
-            errorMessage = "Titeln kunde inte matchas eller finns redan i BingeLog."
+              (kind == .movie && mediaType == .movie) || (kind == .tv && mediaType == .tv) else {
+            errorMessage = "Titeln kunde inte matchas. Kontrollera mediatyp och TMDB-ID."
             return false
+        }
+        let alreadySaved = savedEntries.contains {
+            $0.tmdbID == match.id && $0.mediaKind == kind
         }
         let entry = BingeEntry(
             tmdbID: match.id,
@@ -475,18 +468,45 @@ struct JellyfinLibraryView: View {
             tmdbRating: match.voteAverage,
             status: .planned
         )
-        modelContext.insert(entry)
-        do {
-            try modelContext.save()
-            if jellyfinItem.tmdbID == nil {
-                manualMatches[manualMatchKey(for: jellyfinItem)] = match.id
-                UserDefaults.standard.set(manualMatches, forKey: "BingeLog.Jellyfin.ManualMatchesByServer")
+        var didInsert = false
+        let persistEntry: () throws -> Void = {
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let entryID = entry.tmdbID
+                let mediaKindRaw = entry.mediaKind.rawValue
+                let descriptor = FetchDescriptor<BingeEntry>(
+                    predicate: #Predicate {
+                        $0.tmdbID == entryID && $0.mediaKindRaw == mediaKindRaw
+                    }
+                )
+                guard try context.fetch(descriptor).isEmpty else { return }
+                context.insert(entry)
+                didInsert = true
             }
-            statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
+        }
+
+        do {
+            if jellyfinItem.tmdbID == nil {
+                let key = manualMatchKey(for: jellyfinItem)
+                try JellyfinManualMatchPersistence.save(
+                    tmdbID: match.id,
+                    for: key,
+                    in: .standard,
+                    persist: persistEntry
+                )
+                manualMatches[key] = match.id
+            } else {
+                try persistEntry()
+            }
+
+            let linkedExistingEntry = alreadySaved || !didInsert
+            if linkedExistingEntry {
+                statusMessage = "\(match.displayTitle) kopplades till den befintliga titeln i BingeLog."
+            } else {
+                statusMessage = "\(match.displayTitle) matchades och lades till i Vill se."
+            }
             errorMessage = nil
             return true
         } catch {
-            modelContext.delete(entry)
             errorMessage = "Matchningen kunde inte sparas: \(error.localizedDescription)"
             return false
         }
@@ -497,31 +517,34 @@ struct JellyfinLibraryView: View {
         let candidates = importableItems
         guard !candidates.isEmpty else { return }
 
-        var insertedEntries: [BingeEntry] = []
-        for item in candidates {
-            guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { continue }
-            let date = item.productionYear.map { "\($0)-01-01" }
-            let entry = BingeEntry(
-                tmdbID: id,
-                mediaKind: kind,
-                title: item.name,
-                overview: item.overview ?? "",
-                releaseDate: date,
-                status: .planned
-            )
-            modelContext.insert(entry)
-            insertedEntries.append(entry)
-        }
-
+        var insertedCount = 0
         do {
-            try modelContext.save()
-            statusMessage = "Klart! \(insertedEntries.count) nya titlar importerades som Vill se. Befintliga betyg och tittarhistorik ändrades inte."
+            try DetailViewPersistence.perform(in: modelContext.container) { context in
+                let existingEntries = try context.fetch(FetchDescriptor<BingeEntry>())
+                var knownKeys = Set(existingEntries.map {
+                    entryKey(kind: $0.mediaKind, id: $0.tmdbID)
+                })
+
+                for item in candidates {
+                    guard let id = resolvedTMDBID(for: item), let kind = item.mediaKind else { continue }
+                    let key = entryKey(kind: kind, id: id)
+                    guard knownKeys.insert(key).inserted else { continue }
+
+                    let date = item.productionYear.map { "\($0)-01-01" }
+                    context.insert(BingeEntry(
+                        tmdbID: id,
+                        mediaKind: kind,
+                        title: item.name,
+                        overview: item.overview ?? "",
+                        releaseDate: date,
+                        status: .planned
+                    ))
+                    insertedCount += 1
+                }
+            }
+            statusMessage = "Klart! \(insertedCount) nya titlar importerades som Vill se. Befintliga betyg och tittarhistorik ändrades inte."
             errorMessage = nil
         } catch {
-            for entry in insertedEntries {
-                modelContext.delete(entry)
-            }
-            modelContext.rollback()
             errorMessage = "Importen misslyckades och har återställts. Inga nya titlar har lagts till. \(error.localizedDescription)"
             statusMessage = nil
         }
@@ -629,7 +652,7 @@ private struct JellyfinTMDBMatchSheet: View {
                 ),
                 titleVisibility: .visible
             ) {
-                Button("Matcha och lägg till") {
+                Button("Bekräfta matchning") {
                     if let selectedMatch {
                         onSelect(selectedMatch)
                     }
